@@ -1,0 +1,5 @@
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]  # handled by line-length
+src = ["python", "dashboards"]
