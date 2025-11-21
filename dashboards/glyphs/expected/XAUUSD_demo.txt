@@ -1,0 +1,1 @@
+glyph:XAUUSD:seed=101
