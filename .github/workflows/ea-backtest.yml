@@ -1,0 +1,73 @@
+name: EA Backtest & Validation
+
+on:
+  pull_request:
+    paths:
+      - 'eas/**'
+      - 'python/**'
+      - 'configs/**'
+      - '.github/workflows/**'
+      - 'ci/**'
+
+jobs:
+  validate-glyphs:
+    name: Validate Glyph Traces
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Generate Candidate Trace
+        id: generate_candidate
+        run: |
+          echo "### 🔬 Generating candidate glyph trace..." >> $GITHUB_STEP_SUMMARY
+          # This command simulates running the new code and generating its diagnostic output.
+          python ci/ppo_trace_cli.py replay --symbol EURUSD --window 100
+          echo "✅ Candidate trace generated at logs/compressed_EURUSD_candidate.json" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Baseline for Comparison
+        id: create_baseline
+        run: |
+          echo "### 📚 Creating baseline trace for comparison..." >> $GITHUB_STEP_SUMMARY
+          # In a real workflow, you'd download the baseline from the main branch artifacts.
+          # For now, we'll create a slightly different dummy file to ensure the diff works.
+          echo '[{"type": "RegimeEntered", "step": 1, "emoji": "🔄", "note": "Baseline EURUSD"}]' > logs/compressed_EURUSD_baseline.json
+          echo "✅ Baseline created at logs/compressed_EURUSD_baseline.json" >> $GITHUB_STEP_SUMMARY
+
+      - name: Diff Traces
+        id: diff
+        run: |
+          echo "### 🔍 Comparing traces..." >> $GITHUB_STEP_SUMMARY
+          # This is the core validation step. It compares the PR's output against the baseline.
+          python ci/ppo_trace_cli.py diff --old logs/compressed_EURUSD_baseline.json --new logs/compressed_EURUSD_candidate.json >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Diff Artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: glyph-diff-report
+          path: logs/glyph_diff.json
+
+      - name: Post Final Summary
+        if: always()
+        run: |
+          echo "### 🏁 Final Summary" >> $GITHUB_STEP_SUMMARY
+          if [ '${{ steps.diff.outcome }}' == 'success' ]; then
+            echo "✅ Glyph validation passed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Glyph validation failed. Check the diff report above." >> $GITHUB_STEP_SUMMARY
+          fi
