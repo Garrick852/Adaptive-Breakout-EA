@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Router Demo Config",
+  "allOf": [{ "$ref": "base.schema.json" }],
+  "type": "object",
+  "required": ["trc", "routing"],
+  "properties": {
+    "risk": {
+      "type": "object",
+      "properties": {
+        "max_allocation_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "per_strategy_max_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "rebalance_interval_minutes": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["max_allocation_pct", "per_strategy_max_pct", "rebalance_interval_minutes"]
+    },
+    "trc": {
+      "type": "object",
+      "properties": {
+        "daily_loss_cap": { "type": "number", "minimum": 0 },
+        "weekly_loss_cap": { "type": "number", "minimum": 0 }
+      },
+      "required": ["daily_loss_cap", "weekly_loss_cap"]
+    },
+    "routing": {
+      "type": "object",
+      "properties": {
+        "strategies": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "arbitration": { "type": "string" }
+      },
+      "required": ["strategies", "arbitration"]
+    }
+  }
+}
