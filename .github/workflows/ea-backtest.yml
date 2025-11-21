@@ -64,7 +64,7 @@ jobs:
         if: always()
         run: |
           echo "### 🏁 Final Summary" >> $GITHUB_STEP_SUMMARY
-          if [ ${{ steps.diff.outcome }} == 'success' ]; then
+          if [ '${{ steps.diff.outcome }}' == 'success' ]; then
             echo "✅ Glyph validation passed." >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Glyph validation failed. Check the diff report above." >> $GITHUB_STEP_SUMMARY
