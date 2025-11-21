@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EA Demo Config",
+  "allOf": [{ "$ref": "base.schema.json" }],
+  "type": "object",
+  "required": ["params"],
+  "properties": {
+    "risk": {
+      "type": "object",
+      "properties": {
+        "lot_size": { "type": "number", "minimum": 0 },
+        "max_daily_loss": { "type": "number", "minimum": 0 },
+        "max_drawdown": { "type": "number", "minimum": 0 }
+      },
+      "required": ["lot_size", "max_daily_loss", "max_drawdown"]
+    },
+    "params": {
+      "type": "object",
+      "properties": {
+        "breakout_window": { "type": "integer", "minimum": 1 },
+        "volatility_window": { "type": "integer", "minimum": 1 },
+        "confirmation_threshold": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["breakout_window", "volatility_window", "confirmation_threshold"]
+    }
+  }
+}
