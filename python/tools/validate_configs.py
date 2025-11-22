@@ -3,14 +3,13 @@
 import json
 import os
 
-
 def validate_json(file_path):
     """ Validate a JSON configuration file. """
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"{file_path} does not exist.")
 
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             json.load(f)
         print(f"{file_path} is valid JSON.")
     except json.JSONDecodeError as e:
