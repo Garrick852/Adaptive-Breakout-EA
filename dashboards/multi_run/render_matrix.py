@@ -1,7 +1,8 @@
 import argparse
-import yaml
-import random
 import pathlib
+import random
+
+import yaml
 
 def render(cfg):
     random.seed(cfg.get("seeds", {}).get("python", 0))
