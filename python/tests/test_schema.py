@@ -1,6 +1,7 @@
 import glob
-import yaml
+
 import pytest
+import yaml
 
 REQUIRED = {"name": str, "symbols": list, "risk": dict, "mode": str}
 
