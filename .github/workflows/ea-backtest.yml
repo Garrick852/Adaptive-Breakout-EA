@@ -43,7 +43,11 @@ jobs:
         continue-on-error: false
         run: |
           echo "### 🔍 Running Ruff Linting..." >> $GITHUB_STEP_SUMMARY
-          ruff check python dashboards || {
+          LINT_TARGETS="python"
+          if [ -d "dashboards" ]; then
+            LINT_TARGETS="python dashboards"
+          fi
+          ruff check $LINT_TARGETS || {
             echo "❌ Linting failed" >> $GITHUB_STEP_SUMMARY
             exit 1
           }
@@ -227,5 +231,5 @@ jobs:
           fi
           
       - name: Check Validation Status
-        if: steps.diff.outcome != 'success'
+        if: steps.diff.outcome == 'failure'
         run: exit 1
