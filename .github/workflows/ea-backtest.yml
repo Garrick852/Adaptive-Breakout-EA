@@ -83,9 +83,19 @@ jobs:
           pytest --cov=python --cov-report=term --cov-report=html --cov-report=xml || true
           echo "✅ Coverage report generated" >> $GITHUB_STEP_SUMMARY
 
+      - name: Validate Coverage Artifacts
+        if: always()
+        run: |
+          echo "### 📦 Validating coverage artifacts..." >> $GITHUB_STEP_SUMMARY
+          if [ -d "htmlcov" ] || [ -f "coverage.xml" ]; then
+            echo "✅ Coverage artifacts found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No coverage artifacts found" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Upload Coverage Report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report-python-${{ matrix.python-version }}
           path: |
@@ -93,9 +103,19 @@ jobs:
             coverage.xml
           if-no-files-found: warn
 
+      - name: Validate Test Log Artifacts
+        if: failure()
+        run: |
+          echo "### 📦 Validating test log artifacts..." >> $GITHUB_STEP_SUMMARY
+          if [ -d "logs" ] || [ -d ".pytest_cache" ]; then
+            echo "✅ Test log artifacts found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No test log artifacts found" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Upload Test Logs
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-logs-python-${{ matrix.python-version }}
           path: |
@@ -191,17 +211,44 @@ jobs:
             echo "No differences found (tool not available)" >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Validate Baseline Trace Artifact
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "### 📦 Validating baseline trace artifact..." >> $GITHUB_STEP_SUMMARY
+          if [ -f "logs/compressed_EURUSD_candidate.json" ]; then
+            echo "✅ Baseline trace artifact found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Baseline trace artifact not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Upload Baseline Trace (for future comparisons)
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: baseline-trace
           path: logs/compressed_EURUSD_candidate.json
           retention-days: 90
 
+      - name: Validate Diff Report Artifacts
+        if: always()
+        run: |
+          echo "### 📦 Validating diff report artifacts..." >> $GITHUB_STEP_SUMMARY
+          found=false
+          for file in logs/glyph_diff.json logs/compressed_EURUSD_baseline.json logs/compressed_EURUSD_candidate.json; do
+            if [ -f "$file" ]; then
+              found=true
+              break
+            fi
+          done
+          if [ "$found" = true ]; then
+            echo "✅ Diff report artifacts found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No diff report artifacts found" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Upload Diff Report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: glyph-diff-report
           path: |
@@ -210,9 +257,19 @@ jobs:
             logs/compressed_EURUSD_candidate.json
           if-no-files-found: ignore
 
+      - name: Validate Logs Directory
+        if: always()
+        run: |
+          echo "### 📦 Validating logs directory..." >> $GITHUB_STEP_SUMMARY
+          if [ -d "logs" ]; then
+            echo "✅ Logs directory found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Logs directory not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Upload All Logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: validation-logs
           path: logs/
