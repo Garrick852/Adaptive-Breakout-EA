@@ -233,7 +233,14 @@ jobs:
         if: always()
         run: |
           echo "### 📦 Validating diff report artifacts..." >> $GITHUB_STEP_SUMMARY
-          if [ -f "logs/glyph_diff.json" ] || [ -f "logs/compressed_EURUSD_baseline.json" ] || [ -f "logs/compressed_EURUSD_candidate.json" ]; then
+          found=false
+          for file in logs/glyph_diff.json logs/compressed_EURUSD_baseline.json logs/compressed_EURUSD_candidate.json; do
+            if [ -f "$file" ]; then
+              found=true
+              break
+            fi
+          done
+          if [ "$found" = true ]; then
             echo "✅ Diff report artifacts found" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ No diff report artifacts found" >> $GITHUB_STEP_SUMMARY
