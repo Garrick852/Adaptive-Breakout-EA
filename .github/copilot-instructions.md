@@ -30,7 +30,7 @@ make glyphs # Render glyphs and compare to golden files
 - YAML validation, EOF fixer, trailing whitespace removal
 - Private key detection for security
 
-**Note**: `make render` references `configs/demo/router_demo.yaml` which doesn't exist yet. Use `ea_adaptive_breakout_demo.yaml` as the template for creating new demo configs.
+
 
 ### Testing Philosophy
 - **Golden file testing**: `test_glyphs.py` compares rendered output against `dashboards/glyphs/expected/`
@@ -120,7 +120,6 @@ Glyphs are structured diagnostic outputs from the EA:
 3. **render_matrix.py requires `seeds.python` in config**: Missing seed causes non-deterministic output
 4. **MQL5 EA uses fixed lot sizing**: No dynamic position sizing based on config risk parameters yet
 5. **validate_configs.py is JSON-only**: Doesn't validate YAML configs despite the name - use `test_schema.py` instead
-6. **router_demo.yaml missing**: Makefile references it but file doesn't exist - use `ea_adaptive_breakout_demo.yaml` as template
 
 ## When Making Changes
 
