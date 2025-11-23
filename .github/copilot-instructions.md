@@ -91,7 +91,7 @@ Glyphs are structured diagnostic outputs from the EA:
 
 ### Config Schema Flow
 1. Define structure in YAML configs (`configs/demo/`)
-2. Schemas in `configs/schema/` (currently empty - opportunity for improvement)
+2. Schemas in `configs/schema/` provide JSON Schema Draft 07 validation
 3. Python tests (`test_schema.py`) validate required fields and types
 4. EA reads parameters via input variables (not from YAML at runtime)
 
@@ -116,15 +116,14 @@ Glyphs are structured diagnostic outputs from the EA:
 ## Common Pitfalls
 
 1. **Glyph format changes break CI**: Always update golden files when modifying glyph output
-2. **Schema validation is minimal**: `configs/schema/*.json` are mostly empty - tests rely on Python-side validation
-3. **render_matrix.py requires `seeds.python` in config**: Missing seed causes non-deterministic output
-4. **MQL5 EA uses fixed lot sizing**: No dynamic position sizing based on config risk parameters yet
-5. **validate_configs.py is JSON-only**: Doesn't validate YAML configs despite the name - use `test_schema.py` instead
+2. **render_matrix.py requires `seeds.python` in config**: Missing seed causes non-deterministic output
+3. **MQL5 EA uses fixed lot sizing**: No dynamic position sizing based on config risk parameters yet
+4. **validate_configs.py is JSON-only**: Doesn't validate YAML configs despite the name - use `test_schema.py` instead
 
 ## When Making Changes
 
 - **Adding EA inputs**: Update `ValidateInputs()`, emit relevant glyphs, add test case
 - **Modifying glyphs**: Update `dashboards/glyphs/expected/` golden files and document why in PR
-- **New config fields**: Add to `test_schema.py` required fields, update `ea_adaptive_breakout_demo.yaml`
+- **New config fields**: Add to appropriate JSON schema in `configs/schema/`, update demo configs, run validation
 - **Python tooling**: Ensure ruff/mypy pass, add pytest coverage, follow existing patterns in `python/tests/`
-- **Schemas**: Currently placeholders - populating these is tracked in roadmap for proper JSONSchema validation
+- **Schema changes**: Update JSON schemas with proper constraints, validate against demo configs
