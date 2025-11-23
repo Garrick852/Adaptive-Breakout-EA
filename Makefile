@@ -7,8 +7,8 @@ setup:
 	pre-commit install
 
 lint:
-	ruff python dashboards
-	mypy python
+	python -m ruff check python dashboards
+	python -m mypy python --ignore-missing-imports
 
 test:
 	pytest -q

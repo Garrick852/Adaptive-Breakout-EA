@@ -9,4 +9,6 @@ symbols:
 risk:
   percent: 1.0
 mode: aggressive
+seeds:
+  python: 42
 parameter_name: parameter_value
