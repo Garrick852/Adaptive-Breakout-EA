@@ -1,1 +1,1 @@
-glyph:GBPUSD:seed=42
+glyph:GBPUSD:seed=123

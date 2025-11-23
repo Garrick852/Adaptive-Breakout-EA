@@ -1,0 +1,26 @@
+# Router Demo Configuration
+
+# Multi-symbol routing configuration for the Adaptive Breakout EA
+# This demonstrates how the EA can be configured for multiple trading pairs
+
+name: RouterDemo
+symbols:
+  - EURUSD
+  - GBPUSD
+  - USDJPY
+  - AUDUSD
+risk:
+  percent: 1.5
+  max_daily_loss: 2.0
+  max_drawdown: 5.0
+mode: balanced
+routing:
+  enable: true
+  priority: correlation
+seeds:
+  python: 123
+parameters:
+  breakout_buffer: 10.0
+  breakout_window: 50
+  volatility_window: 20
+  sensitivity_threshold: 0.60

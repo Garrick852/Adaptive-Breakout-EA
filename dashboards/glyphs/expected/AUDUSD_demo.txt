@@ -1,0 +1,1 @@
+glyph:AUDUSD:seed=123
