@@ -96,13 +96,13 @@ Glyphs are structured diagnostic outputs from the EA:
 4. EA reads parameters via input variables (not from YAML at runtime)
 
 ### Drift Detection Pattern
-- `drift_detection.mqh` is a **standalone module** providing `MonitorDrift()` and `IsModelDrifting()` functions
-- **Not yet integrated**: Must manually `#include "drift_detection.mqh"` in EA and call `MonitorDrift()` in `OnTick()`
-- Analyzes recent trade history via `HistoryDealsTotal()` and `HistoryDealGetTicket()`
+- `drift_detection.mqh` module is **integrated** into the main EA (v0.3.0+)
+- `MonitorDrift()` called in `OnTick()` to analyze recent trade history
+- Analyzes trade history via `HistoryDealsTotal()` and `HistoryDealGetTicket()`
 - Filters by magic number (`InpDriftMagicNumber = 123456`)
 - Calculates win rate over last N trades where sensitivity was high
 - Sets `isModelDrifting = true` and emits `DriftDetected` glyph when performance drops below threshold
-- Main EA should check `IsModelDrifting()` flag to halt trading
+- EA checks `IsModelDrifting()` before trading and emits `TradingHalted` glyph to halt trades
 
 ## Key File References
 
@@ -120,8 +120,7 @@ Glyphs are structured diagnostic outputs from the EA:
 3. **render_matrix.py requires `seeds.python` in config**: Missing seed causes non-deterministic output
 4. **MQL5 EA uses fixed lot sizing**: No dynamic position sizing based on config risk parameters yet
 5. **validate_configs.py is JSON-only**: Doesn't validate YAML configs despite the name - use `test_schema.py` instead
-6. **drift_detection.mqh not integrated**: Module exists but isn't included in main EA - must manually integrate
-7. **router_demo.yaml missing**: Makefile references it but file doesn't exist - use `ea_adaptive_breakout_demo.yaml` as template
+6. **router_demo.yaml missing**: Makefile references it but file doesn't exist - use `ea_adaptive_breakout_demo.yaml` as template
 
 ## When Making Changes
 
@@ -130,4 +129,3 @@ Glyphs are structured diagnostic outputs from the EA:
 - **New config fields**: Add to `test_schema.py` required fields, update `ea_adaptive_breakout_demo.yaml`
 - **Python tooling**: Ensure ruff/mypy pass, add pytest coverage, follow existing patterns in `python/tests/`
 - **Schemas**: Currently placeholders - populating these is tracked in roadmap for proper JSONSchema validation
-- **Integrating drift detection**: Add `#include "drift_detection.mqh"` to EA, call `MonitorDrift()` in `OnTick()`, check `IsModelDrifting()` before trading
