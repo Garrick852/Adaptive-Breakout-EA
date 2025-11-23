@@ -3,6 +3,7 @@
 import json
 import os
 
+
 def validate_json(file_path):
     """ Validate a JSON configuration file. """
     if not os.path.isfile(file_path):
