@@ -1,1 +1,168 @@
-//+------------------------------------------------------------------+\n//| AdaptiveBreakoutAI.mq5                                           |\n//| Demo-ready scaffold with regime gating, sensitivity scoring,     |\n//| drift detection, risk caps, and glyph diagnostics.               |\n//+------------------------------------------------------------------+\n#property copyright "fh"\n#property version   "0.2.0"\n#property strict\n#include <Trade\Trade.mqh>\n\n// -------------------- Inputs (demo defaults) -----------------------\ninput double   BreakoutBufferBase      = 10.0;    // base points beyond high/low\ninput int      BreakoutWindow          = 50;      // lookback window for breakout\ninput int      VolatilityWindow        = 20;      // lookback window for volatility\ninput double   SensitivityThreshold    = 0.60;    // gate for entries\ninput ENUM_TIMEFRAMES RegimeTF         = PERIOD_H1;\n\ninput double   LotSize                 = 0.10;    // demo fixed lot\ninput double   MaxDailyLossPct         = 1.50;    // demo cap (percent of balance)\ninput double   MaxDrawdownPct          = 5.00;    // demo cap (percent of balance)\ninput int      MinSecondsBetweenTrades = 60;      // rate limit\n\n// -------------------- State ----------------------------------------\nCTrade trade;\ndouble sensitivityScore = 0.0;\nstring currentRegime    = "Unknown";\ndatetime lastTradeTime  = 0;\ndouble startBalance     = 0.0;\n\n// -------------------- Helpers --------------------------------------\nvoid EmitGlyph(const string type, const double value) { PrintFormat("Glyph: %s = %.5f", type, value); }\nvoid EmitGlyph(const string type, const string note)  { PrintFormat("Glyph: %s - %s", type, note); }\n\nbool ValidateInputs()\n{\n   bool ok = true;\n   if(BreakoutWindow < 1) { Print("Invalid BreakoutWindow < 1"); ok = false; }\n   if(VolatilityWindow < 1){ Print("Invalid VolatilityWindow < 1"); ok = false; }\n   if(SensitivityThreshold < 0.0 || SensitivityThreshold > 1.0) { Print("SensitivityThreshold out of [0,1]"); ok = false; }\n   if(LotSize <= 0.0) { Print("LotSize must be > 0"); ok = false; }\n   if(MaxDailyLossPct < 0.0 || MaxDrawdownPct < 0.0) { Print("Risk caps must be >= 0"); ok = false; }\n   return(ok);\n}\n\n// Demo regime detection: reads basic slope on RegimeTF\nstring DetectRegime()\n{\n   int bars = iBars(_Symbol, RegimeTF);\n   if(bars < 3) return("Unknown");\n   double p0 = iClose(_Symbol, RegimeTF, 0);\n   double p1 = iClose(_Symbol, RegimeTF, 1);\n   double p2 = iClose(_Symbol, RegimeTF, 2);\n   double slope = (p0 - p2) / MathMax(1e-6, 2.0);\n   // Simple gating\n   if(slope > 0) return("Trend");\n   if(slope < 0) return("DownTrend");\n   return("Sideways");\n}\n\n// Demo sensitivity scoring: normalized ATR vs buffer\ndouble CalculateSensitivityScore()\n{\n   double atr = iATR(_Symbol, PERIOD_CURRENT, VolatilityWindow, 0);\n   double score = atr / MathMax(1e-6, BreakoutBufferBase * _Point);\n   // Bound to [0,1] for gating\n   score = MathMin(1.0, MathMax(0.0, score));\n   return(score);\n}\n\n// Drift detection (demo): emit when sensitivity dips or regime not "Trend"\nbool DriftDetected(const double sensitivity, const string regime)\n{\n   if(sensitivity < 0.50 || regime != "Trend") return(true);\n   return(false);\n}\n\n// Basic rate limiting\nbool CanTradeNow()\n{\n   if(TimeCurrent() - lastTradeTime < MinSecondsBetweenTrades) return(false);\n   return(true);\n}\n\n// Risk caps (demo): check unrealized+realized change vs caps\nbool RiskCapsBreached()\n{\n   double bal    = AccountInfoDouble(ACCOUNT_BALANCE);\n   double equity = AccountInfoDouble(ACCOUNT_EQUITY);\n   double dailyCap = MaxDailyLossPct / 100.0 * startBalance;\n   double ddCap    = MaxDrawdownPct  / 100.0 * startBalance;\n\n   double dailyLossApprox = startBalance - equity; // simplification for demo\n   double drawdownApprox  = startBalance - equity;\n\n   if(dailyLossApprox > dailyCap) { Print("Daily loss cap breached"); EmitGlyph("DailyLossCapBreached", 1.0); return(true); }\n   if(drawdownApprox  > ddCap)    { Print("Drawdown cap breached");   EmitGlyph("DrawdownCapBreached", 1.0);  return(true); }\n   return(false);\n}\n\n// Simple breakout condition: price exceeds recent high by buffer in points\nbool CheckBreakoutEntry()\n{\n   int bars = Bars(_Symbol, PERIOD_CURRENT);\n   if(bars <= BreakoutWindow + 2) return(false);\n\n   currentRegime    = DetectRegime();\nsensitivityScore = CalculateSensitivityScore();\n\n   EmitGlyph("Regime", currentRegime);\n   EmitGlyph("SensitivityScore", sensitivityScore);\n\n   if(DriftDetected(sensitivityScore, currentRegime))\n      EmitGlyph("DriftDetected", 1.0);\n\n   double highest = iHigh(_Symbol, PERIOD_CURRENT, iHighest(_Symbol, PERIOD_CURRENT, MODE_HIGH, BreakoutWindow, 1));\n   double buffer  = BreakoutBufferBase * _Point;\n   double price   = SymbolInfoDouble(_Symbol, SYMBOL_ASK);\n\n   bool breakoutUp = (price > highest + buffer);\n   EmitGlyph("BreakoutUp", breakoutUp ? 1.0 : 0.0);\n\n   if(sensitivityScore >= SensitivityThreshold && currentRegime == "Trend" && breakoutUp)\n      return(true);\n   return(false);\n}\n\n// -------------------- Lifecycle ------------------------------------\nint OnInit()\n{\n   if(!ValidateInputs()) return(INIT_PARAMETERS_INCORRECT);\n   trade.SetExpertMagicNumber(123456); // demo magic\n   startBalance = AccountInfoDouble(ACCOUNT_BALANCE);\n   Print("AdaptiveBreakoutAI initialized (demo). Symbol=", _Symbol);\n   EmitGlyph("EAInit", 1.0);\n   return(INIT_SUCCEEDED);\n}\n\nvoid OnDeinit(const int reason)\n{\n   EmitGlyph("EADeinitReason", (double)reason);\n   Print("AdaptiveBreakoutAI deinitialized.");\n}\n\nvoid OnTick()\n{\n   // Basic pre-trade checks\n   if(!CanTradeNow()) return;\n   if(RiskCapsBreached()) return;\n\n   // Demo entry: buy when breakout condition passes\n   if(CheckBreakoutEntry())\n   {\n      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);\n      double vol  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);\n      double step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);\n      double lot  = MathMax(vol, MathFloor(LotSize / step) * step);\n\n      bool ok = trade.Buy(lot, _Symbol, ask, 0, 0, "AdaptiveBreakoutAI demo");\n      if(ok)\n      {\n         lastTradeTime = TimeCurrent();\n         EmitGlyph("TradePlaced", 1.0);\n         PrintFormat("Buy placed: lot=%.2f price=%.5f", lot, ask);\n      }\n      else\n      {\n         EmitGlyph("TradeError", 1.0);\n         Print("Trade failed: ", GetLastError());\n      }\n   }\n}
+//+------------------------------------------------------------------+
+//| AdaptiveBreakoutAI.mq5                                           |
+//| Demo-ready scaffold with regime gating, sensitivity scoring,     |
+//| drift detection, risk caps, and glyph diagnostics.               |
+//+------------------------------------------------------------------+
+#property copyright "fh"
+#property version   "0.3.0"
+#property strict
+#include <Trade\Trade.mqh>
+#include "drift_detection.mqh"
+
+// -------------------- Inputs (demo defaults) -----------------------
+input double   BreakoutBufferBase      = 10.0;    // base points beyond high/low
+input int      BreakoutWindow          = 50;      // lookback window for breakout
+input int      VolatilityWindow        = 20;      // lookback window for volatility
+input double   SensitivityThreshold    = 0.60;    // gate for entries
+input ENUM_TIMEFRAMES RegimeTF         = PERIOD_H1;
+
+input double   LotSize                 = 0.10;    // demo fixed lot
+input double   MaxDailyLossPct         = 1.50;    // demo cap (percent of balance)
+input double   MaxDrawdownPct          = 5.00;    // demo cap (percent of balance)
+input int      MinSecondsBetweenTrades = 60;      // rate limit
+
+// -------------------- State ----------------------------------------
+CTrade trade;
+double sensitivityScore = 0.0;
+string currentRegime    = "Unknown";
+datetime lastTradeTime  = 0;
+double startBalance     = 0.0;
+
+// -------------------- Helpers --------------------------------------
+void EmitGlyph(const string type, const double value) { PrintFormat("Glyph: %s = %.5f", type, value); }
+void EmitGlyph(const string type, const string note)  { PrintFormat("Glyph: %s - %s", type, note); }
+
+bool ValidateInputs()
+{
+   bool ok = true;
+   if(BreakoutWindow < 1) { Print("Invalid BreakoutWindow < 1"); ok = false; }
+   if(VolatilityWindow < 1){ Print("Invalid VolatilityWindow < 1"); ok = false; }
+   if(SensitivityThreshold < 0.0 || SensitivityThreshold > 1.0) { Print("SensitivityThreshold out of [0,1]"); ok = false; }
+   if(LotSize <= 0.0) { Print("LotSize must be > 0"); ok = false; }
+   if(MaxDailyLossPct < 0.0 || MaxDrawdownPct < 0.0) { Print("Risk caps must be >= 0"); ok = false; }
+   return(ok);
+}
+
+// Demo regime detection: reads basic slope on RegimeTF
+string DetectRegime()
+{
+   int bars = iBars(_Symbol, RegimeTF);
+   if(bars < 3) return("Unknown");
+   double p0 = iClose(_Symbol, RegimeTF, 0);
+   double p1 = iClose(_Symbol, RegimeTF, 1);
+   double p2 = iClose(_Symbol, RegimeTF, 2);
+   double slope = (p0 - p2) / MathMax(1e-6, 2.0);
+   // Simple gating
+   if(slope > 0) return("Trend");
+   if(slope < 0) return("DownTrend");
+   return("Sideways");
+}
+
+// Demo sensitivity scoring: normalized ATR vs buffer
+double CalculateSensitivityScore()
+{
+   double atr = iATR(_Symbol, PERIOD_CURRENT, VolatilityWindow, 0);
+   double score = atr / MathMax(1e-6, BreakoutBufferBase * _Point);
+   // Bound to [0,1] for gating
+   score = MathMin(1.0, MathMax(0.0, score));
+   return(score);
+}
+
+
+
+// Basic rate limiting
+bool CanTradeNow()
+{
+   if(TimeCurrent() - lastTradeTime < MinSecondsBetweenTrades) return(false);
+   return(true);
+}
+
+// Risk caps (demo): check unrealized+realized change vs caps
+bool RiskCapsBreached()
+{
+   double bal    = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   double dailyCap = MaxDailyLossPct / 100.0 * startBalance;
+   double ddCap    = MaxDrawdownPct  / 100.0 * startBalance;
+
+   double dailyLossApprox = startBalance - equity; // simplification for demo
+   double drawdownApprox  = startBalance - equity;
+
+   if(dailyLossApprox > dailyCap) { Print("Daily loss cap breached"); EmitGlyph("DailyLossCapBreached", 1.0); return(true); }
+   if(drawdownApprox  > ddCap)    { Print("Drawdown cap breached");   EmitGlyph("DrawdownCapBreached", 1.0);  return(true); }
+   return(false);
+}
+
+// Simple breakout condition: price exceeds recent high by buffer in points
+bool CheckBreakoutEntry()
+{
+   int bars = Bars(_Symbol, PERIOD_CURRENT);
+   if(bars <= BreakoutWindow + 2) return(false);
+
+   currentRegime    = DetectRegime();
+sensitivityScore = CalculateSensitivityScore();
+
+   EmitGlyph("Regime", currentRegime);
+   EmitGlyph("SensitivityScore", sensitivityScore);
+
+   double highest = iHigh(_Symbol, PERIOD_CURRENT, iHighest(_Symbol, PERIOD_CURRENT, MODE_HIGH, BreakoutWindow, 1));
+   double buffer  = BreakoutBufferBase * _Point;
+   double price   = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+   bool breakoutUp = (price > highest + buffer);
+   EmitGlyph("BreakoutUp", breakoutUp ? 1.0 : 0.0);
+
+   if(sensitivityScore >= SensitivityThreshold && currentRegime == "Trend" && breakoutUp)
+      return(true);
+   return(false);
+}
+
+// -------------------- Lifecycle ------------------------------------
+int OnInit()
+{
+   if(!ValidateInputs()) return(INIT_PARAMETERS_INCORRECT);
+   trade.SetExpertMagicNumber(123456); // demo magic
+   startBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+   Print("AdaptiveBreakoutAI initialized (demo). Symbol=", _Symbol);
+   EmitGlyph("EAInit", 1.0);
+   return(INIT_SUCCEEDED);
+}
+
+void OnDeinit(const int reason)
+{
+   EmitGlyph("EADeinitReason", (double)reason);
+   Print("AdaptiveBreakoutAI deinitialized.");
+}
+
+void OnTick()
+{
+   // Monitor drift detection module
+   MonitorDrift();
+
+   // Basic pre-trade checks
+   if(!CanTradeNow()) return;
+   if(RiskCapsBreached()) return;
+   if(IsModelDrifting()) { EmitGlyph("TradingHalted", "Model drift detected"); return; }
+
+   // Demo entry: buy when breakout condition passes
+   if(CheckBreakoutEntry())
+   {
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      double vol  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+      double step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+      double lot  = MathMax(vol, MathFloor(LotSize / step) * step);
+
+      bool ok = trade.Buy(lot, _Symbol, ask, 0, 0, "AdaptiveBreakoutAI demo");
+      if(ok)
+      {
+         lastTradeTime = TimeCurrent();
+         EmitGlyph("TradePlaced", 1.0);
+         PrintFormat("Buy placed: lot=%.2f price=%.5f", lot, ask);
+      }
+      else
+      {
+         EmitGlyph("TradeError", 1.0);
+         Print("Trade failed: ", GetLastError());
+      }
+   }
+}
