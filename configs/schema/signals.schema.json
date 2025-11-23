@@ -1,1 +1,46 @@
-{}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Signals Configuration Schema",
+  "description": "Trading signal generation and filtering configuration",
+  "allOf": [
+    {
+      "$ref": "base.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "signals": {
+          "type": "object",
+          "description": "Signal generation parameters",
+          "properties": {
+            "regime_filter": {
+              "type": "boolean",
+              "description": "Enable regime-based filtering",
+              "default": true
+            },
+            "drift_monitoring": {
+              "type": "boolean",
+              "description": "Enable drift detection monitoring",
+              "default": true
+            },
+            "min_confidence": {
+              "type": "number",
+              "description": "Minimum signal confidence threshold",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "timeframes": {
+              "type": "array",
+              "description": "Timeframes for signal analysis",
+              "items": {
+                "type": "string",
+                "enum": ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"]
+              },
+              "minItems": 1
+            }
+          }
+        }
+      }
+    }
+  ]
+}

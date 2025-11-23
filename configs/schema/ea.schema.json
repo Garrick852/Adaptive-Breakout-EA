@@ -1,1 +1,45 @@
-{}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EA Configuration Schema",
+  "description": "Expert Advisor configuration parameters",
+  "allOf": [
+    {
+      "$ref": "base.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "parameters": {
+          "type": "object",
+          "description": "EA trading parameters",
+          "properties": {
+            "breakout_buffer": {
+              "type": "number",
+              "description": "Buffer points beyond high/low",
+              "minimum": 1.0,
+              "maximum": 100.0
+            },
+            "breakout_window": {
+              "type": "integer",
+              "description": "Lookback window for breakout detection",
+              "minimum": 10,
+              "maximum": 200
+            },
+            "volatility_window": {
+              "type": "integer",
+              "description": "Lookback window for volatility calculation",
+              "minimum": 5,
+              "maximum": 100
+            },
+            "sensitivity_threshold": {
+              "type": "number",
+              "description": "Sensitivity score threshold for entries",
+              "minimum": 0.0,
+              "maximum": 1.0
+            }
+          }
+        }
+      }
+    }
+  ]
+}

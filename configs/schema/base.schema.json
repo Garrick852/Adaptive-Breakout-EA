@@ -1,1 +1,64 @@
-{}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Base Configuration Schema",
+  "description": "Common fields shared across all configuration types",
+  "type": "object",
+  "required": ["name", "symbols", "risk", "mode"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Configuration name identifier",
+      "minLength": 1
+    },
+    "symbols": {
+      "type": "array",
+      "description": "List of trading symbols/currency pairs",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]{6}$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "risk": {
+      "type": "object",
+      "description": "Risk management parameters",
+      "required": ["percent"],
+      "properties": {
+        "percent": {
+          "type": "number",
+          "description": "Risk percentage per trade",
+          "minimum": 0.1,
+          "maximum": 10.0
+        },
+        "max_daily_loss": {
+          "type": "number",
+          "description": "Maximum daily loss percentage",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "max_drawdown": {
+          "type": "number",
+          "description": "Maximum drawdown percentage",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "mode": {
+      "type": "string",
+      "description": "Trading mode",
+      "enum": ["aggressive", "balanced", "conservative"]
+    },
+    "seeds": {
+      "type": "object",
+      "description": "Random seeds for deterministic behavior",
+      "properties": {
+        "python": {
+          "type": "integer",
+          "description": "Python random seed"
+        }
+      }
+    }
+  }
+}

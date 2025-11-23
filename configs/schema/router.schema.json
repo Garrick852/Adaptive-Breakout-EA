@@ -1,1 +1,37 @@
-{}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Router Configuration Schema",
+  "description": "Multi-symbol routing configuration",
+  "allOf": [
+    {
+      "$ref": "base.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "routing": {
+          "type": "object",
+          "description": "Routing strategy configuration",
+          "required": ["enable"],
+          "properties": {
+            "enable": {
+              "type": "boolean",
+              "description": "Enable multi-symbol routing"
+            },
+            "priority": {
+              "type": "string",
+              "description": "Routing priority strategy",
+              "enum": ["correlation", "volatility", "spread", "round_robin"]
+            },
+            "max_concurrent": {
+              "type": "integer",
+              "description": "Maximum concurrent positions",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        }
+      }
+    }
+  ]
+}
