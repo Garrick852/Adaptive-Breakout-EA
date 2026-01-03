@@ -1,4 +1,4 @@
-.PHONY: setup lint test render glyphs ci
+.PHONY: setup lint test render glyphs ci package-mt5
 
 setup:
 	python -m pip install --upgrade pip
@@ -21,3 +21,7 @@ glyphs: render
 
 ci: setup lint test glyphs
 	@echo "CI suite complete"
+
+package-mt5:
+	python3 scripts/package_mt5.py
+	@echo "MT5 package ready at dist/mt5/"
