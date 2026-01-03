@@ -1,65 +1,61 @@
 #!/usr/bin/env python3
 import os
 import shutil
-from pathlib import Path
 
 # Source paths
-SRC_EA = Path("eas/AdaptiveBreakoutAI/src")
-SRC_CONFIGS = Path("configs")
-SRC_DASHBOARDS = Path("dashboards")
+SRC_EA = "eas/AdaptiveBreakoutAI/src"
+SRC_CONFIGS = "configs"
+SRC_DASHBOARDS = "dashboards"
 
 # Target paths
-TARGET_ROOT = Path("dist/mt5")
-TARGET_EXPERTS = TARGET_ROOT / "MQL5/Experts/AdaptiveBreakoutAI"
-TARGET_INCLUDE = TARGET_ROOT / "MQL5/Include/AdaptiveBreakoutAI"
-TARGET_FILES = TARGET_ROOT / "MQL5/Files"
-TARGET_CONFIGS = TARGET_FILES / "configs"
-TARGET_DASHBOARDS = TARGET_FILES / "dashboards"
+TARGET_ROOT = "dist/mt5"
+TARGET_EXPERTS = os.path.join(TARGET_ROOT, "MQL5/Experts/AdaptiveBreakoutAI")
+TARGET_INCLUDE = os.path.join(TARGET_ROOT, "MQL5/Include/AdaptiveBreakoutAI")
+TARGET_FILES = os.path.join(TARGET_ROOT, "MQL5/Files")
 
-# Files to exclude from packaging
-EXCLUDED_CONFIGS = {"prop_firm.json"}
+# Exclusion filters
+EXCLUDE_CONFIGS = {"prop_firm.json", "demo.json"}
+EXCLUDE_DASHBOARDS = {"glyphs/expected"}  # relative subpaths to skip
 
 def ensure_dirs():
-    for d in [TARGET_EXPERTS, TARGET_INCLUDE, TARGET_FILES, TARGET_CONFIGS, TARGET_DASHBOARDS]:
-        d.mkdir(parents=True, exist_ok=True)
+    for d in [TARGET_EXPERTS, TARGET_INCLUDE, TARGET_FILES]:
+        os.makedirs(d, exist_ok=True)
 
 def copy_ea_files():
-    if not SRC_EA.exists():
-        print(f"⚠️ Source EA path missing: {SRC_EA}")
-        return
-    for f in SRC_EA.iterdir():
-        if f.suffix == ".mq5":
-            shutil.copy(f, TARGET_EXPERTS)
-        elif f.suffix == ".mqh":
-            shutil.copy(f, TARGET_INCLUDE)
+    for f in os.listdir(SRC_EA):
+        if f.endswith(".mq5"):
+            shutil.copy(os.path.join(SRC_EA, f), TARGET_EXPERTS)
+        elif f.endswith(".mqh"):
+            shutil.copy(os.path.join(SRC_EA, f), TARGET_INCLUDE)
 
 def copy_configs():
-    if not SRC_CONFIGS.exists():
-        print(f"⚠️ Config path missing: {SRC_CONFIGS}")
-        return
-    for f in SRC_CONFIGS.iterdir():
-        if f.name in EXCLUDED_CONFIGS:
-            print(f"⏭️ Skipping excluded config: {f.name}")
-            continue
-        if f.is_dir():
-            # Preserve subfolders such as schema/
-            shutil.copytree(f, TARGET_CONFIGS / f.name, dirs_exist_ok=True)
-        elif f.is_file():
-            shutil.copy(f, TARGET_CONFIGS)
+    if os.path.exists(SRC_CONFIGS):
+        for root, _, files in os.walk(SRC_CONFIGS):
+            rel_path = os.path.relpath(root, SRC_CONFIGS)
+            target_dir = os.path.join(TARGET_FILES, "configs", rel_path)
+            os.makedirs(target_dir, exist_ok=True)
+            for f in files:
+                if f in EXCLUDE_CONFIGS:
+                    continue
+                shutil.copy(os.path.join(root, f), target_dir)
 
 def copy_dashboards():
-    if not SRC_DASHBOARDS.exists():
-        print(f"⚠️ Dashboards path missing: {SRC_DASHBOARDS}")
-        return
-    # Copy entire dashboards tree (includes glyphs/expected, json, etc.)
-    shutil.copytree(SRC_DASHBOARDS, TARGET_DASHBOARDS, dirs_exist_ok=True)
+    if os.path.exists(SRC_DASHBOARDS):
+        for root, _, files in os.walk(SRC_DASHBOARDS):
+            rel_path = os.path.relpath(root, SRC_DASHBOARDS)
+            if any(rel_path.startswith(ex) for ex in EXCLUDE_DASHBOARDS):
+                continue
+            target_dir = os.path.join(TARGET_FILES, "dashboards", rel_path)
+            os.makedirs(target_dir, exist_ok=True)
+            for f in files:
+                shutil.copy(os.path.join(root, f), target_dir)
 
 def main():
     ensure_dirs()
     copy_ea_files()
     copy_configs()
     copy_dashboards()
-    print(f"✅ MT5 package scaffolded at: {TARGET_ROOT}")
+    print("✅ MT5 package scaffolded at:", TARGET_ROOT)
 
 if __name__ == "__main__":
     main()
