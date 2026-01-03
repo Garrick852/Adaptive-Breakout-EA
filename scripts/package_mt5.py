@@ -16,6 +16,9 @@ TARGET_FILES = TARGET_ROOT / "MQL5/Files"
 TARGET_CONFIGS = TARGET_FILES / "configs"
 TARGET_DASHBOARDS = TARGET_FILES / "dashboards"
 
+# Files to exclude from packaging
+EXCLUDED_CONFIGS = {"prop_firm.json"}
+
 def ensure_dirs():
     for d in [TARGET_EXPERTS, TARGET_INCLUDE, TARGET_FILES, TARGET_CONFIGS, TARGET_DASHBOARDS]:
         d.mkdir(parents=True, exist_ok=True)
@@ -35,6 +38,9 @@ def copy_configs():
         print(f"⚠️ Config path missing: {SRC_CONFIGS}")
         return
     for f in SRC_CONFIGS.iterdir():
+        if f.name in EXCLUDED_CONFIGS:
+            print(f"⏭️ Skipping excluded config: {f.name}")
+            continue
         if f.is_dir():
             # Preserve subfolders such as schema/
             shutil.copytree(f, TARGET_CONFIGS / f.name, dirs_exist_ok=True)
