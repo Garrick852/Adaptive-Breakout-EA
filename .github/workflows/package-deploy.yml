@@ -31,6 +31,12 @@ jobs:
         run: |
           python scripts/package_mt5.py
 
+      - name: Deploy EA (local only)
+        if: ${{ env.MT5_LOCAL_DEPLOY == 'true' }}
+        shell: cmd
+        run: |
+          scripts\deploy_mt5.bat
+
       - name: Upload packaged EA artifact
         uses: actions/upload-artifact@v4
         with:
