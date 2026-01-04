@@ -26,6 +26,8 @@ def copy_ea_files():
         if f.endswith(".mq5"):
             shutil.copy(os.path.join(SRC_EA, f), TARGET_EXPERTS)
         elif f.endswith(".mqh"):
+            # Copy .mqh to BOTH Experts (for relative includes) and Include folders
+            shutil.copy(os.path.join(SRC_EA, f), TARGET_EXPERTS)
             shutil.copy(os.path.join(SRC_EA, f), TARGET_INCLUDE)
 
 def copy_configs():
