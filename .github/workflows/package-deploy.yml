@@ -4,13 +4,11 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # allow manual runs
+  workflow_dispatch:  # allow manual reruns
 
 jobs:
   package-deploy:
     runs-on: windows-latest
-    env:
-      PYTHONUTF8: 1
 
     steps:
       - name: Checkout repository
@@ -22,7 +20,6 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
-        shell: cmd
         run: |
           python -m pip install --upgrade pip
           if exist requirements.txt (pip install -r requirements.txt)
@@ -36,11 +33,15 @@ jobs:
         run: |
           REM Check if MT5 Data Folder exists on runner
           if exist "%APPDATA%\MetaQuotes\Terminal\43A9BD896CCB6BF2DF5C71EA198AE39D\MQL5" (
-            echo MT5 Data Folder found - running real deployment
+            echo "MT5 Data Folder found — running real deployment"
             scripts\deploy_mt5.bat
           ) else (
-            echo No MT5 installation on CI runner - deployment simulated
+            echo "⚠️ No MT5 installation on CI runner — deployment simulated"
           )
+
+      - name: List packaged contents
+        run: |
+          dir dist\mt5\MQL5 /s
 
       - name: Upload packaged EA artifact
         uses: actions/upload-artifact@v4
