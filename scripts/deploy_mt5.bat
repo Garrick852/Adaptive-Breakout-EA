@@ -1,8 +1,15 @@
 @echo off
 setlocal
 
+REM ============================================================
+REM  Deploy packaged EA to MetaTrader 5 Data Folder
+REM  - Copies from dist/mt5/MQL5/... to MT5 Data Folder
+REM  - Preserves folder structure (Experts, Include, Files)
+REM  - Automates deployment for CI/CD integration
+REM ============================================================
+
 REM === Configuration ===
-set MT5_DATA=C:\Users\User\AppData\Roaming\MetaQuotes\Terminal\43A9BD896CCB6BF2DF5C71EA198AE39D
+set MT5_DATA=%APPDATA%\MetaQuotes\Terminal\43A9BD896CCB6BF2DF5C71EA198AE39D\MQL5
 set DIST=dist\mt5\MQL5
 
 REM === Run packaging script ===
@@ -16,10 +23,10 @@ if %ERRORLEVEL% neq 0 (
 REM === Copy to MT5 Data Folder ===
 echo 🚀 Deploying to Ultima Markets MT5...
 
-xcopy /E /I /Y "%DIST%\Experts\AdaptiveBreakoutAI" "%MT5_DATA%\MQL5\Experts\Advisors\AdaptiveBreakoutAI"
-xcopy /E /I /Y "%DIST%\Include\AdaptiveBreakoutAI" "%MT5_DATA%\MQL5\Include\AdaptiveBreakoutAI"
-xcopy /E /I /Y "%DIST%\Files\configs" "%MT5_DATA%\MQL5\Files\configs"
-xcopy /E /I /Y "%DIST%\Files\dashboards" "%MT5_DATA%\MQL5\Files\dashboards"
+xcopy /E /Y "%DIST%\Experts" "%MT5_DATA%\Experts"
+xcopy /E /Y "%DIST%\Include" "%MT5_DATA%\Include"
+xcopy /E /Y "%DIST%\Files"   "%MT5_DATA%\Files"
 
-echo ✅ Deployment complete! Refresh Expert Advisors in MT5.
+echo ✅ Deployment complete. Refresh Expert Advisors in MT5.
+pause
 endlocal
