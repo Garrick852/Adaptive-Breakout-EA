@@ -4,7 +4,7 @@
 //| drift detection, risk caps, and glyph diagnostics.               |
 //+------------------------------------------------------------------+
 #property copyright "fh"
-#property version   "0.3.0"
+#property version   "1.00"
 #property strict
 #include <Trade\Trade.mqh>
 #include "drift_detection.mqh"
@@ -27,6 +27,7 @@ double sensitivityScore = 0.0;
 string currentRegime    = "Unknown";
 datetime lastTradeTime  = 0;
 double startBalance     = 0.0;
+int atrHandle           = INVALID_HANDLE;
 
 // -------------------- Helpers --------------------------------------
 void EmitGlyph(const string type, const double value) { PrintFormat("Glyph: %s = %.5f", type, value); }
@@ -61,7 +62,14 @@ string DetectRegime()
 // Demo sensitivity scoring: normalized ATR vs buffer
 double CalculateSensitivityScore()
 {
-   double atr = iATR(_Symbol, PERIOD_CURRENT, VolatilityWindow, 0);
+   double atrBuffer[];
+   ArraySetAsSeries(atrBuffer, true);
+   if(CopyBuffer(atrHandle, 0, 0, 1, atrBuffer) <= 0)
+   {
+      Print("Failed to get ATR value");
+      return 0.0;
+   }
+   double atr = atrBuffer[0];
    double score = atr / MathMax(1e-6, BreakoutBufferBase * _Point);
    // Bound to [0,1] for gating
    score = MathMin(1.0, MathMax(0.0, score));
@@ -100,7 +108,7 @@ bool CheckBreakoutEntry()
    if(bars <= BreakoutWindow + 2) return(false);
 
    currentRegime    = DetectRegime();
-sensitivityScore = CalculateSensitivityScore();
+   sensitivityScore = CalculateSensitivityScore();
 
    EmitGlyph("Regime", currentRegime);
    EmitGlyph("SensitivityScore", sensitivityScore);
@@ -121,6 +129,15 @@ sensitivityScore = CalculateSensitivityScore();
 int OnInit()
 {
    if(!ValidateInputs()) return(INIT_PARAMETERS_INCORRECT);
+   
+   // Create ATR indicator handle
+   atrHandle = iATR(_Symbol, PERIOD_CURRENT, VolatilityWindow);
+   if(atrHandle == INVALID_HANDLE)
+   {
+      Print("Failed to create ATR indicator handle");
+      return(INIT_FAILED);
+   }
+   
    trade.SetExpertMagicNumber(123456); // demo magic
    startBalance = AccountInfoDouble(ACCOUNT_BALANCE);
    Print("AdaptiveBreakoutAI initialized (demo). Symbol=", _Symbol);
@@ -130,6 +147,10 @@ int OnInit()
 
 void OnDeinit(const int reason)
 {
+   // Release indicator handle
+   if(atrHandle != INVALID_HANDLE)
+      IndicatorRelease(atrHandle);
+   
    EmitGlyph("EADeinitReason", (double)reason);
    Print("AdaptiveBreakoutAI deinitialized.");
 }
