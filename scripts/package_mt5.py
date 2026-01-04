@@ -55,7 +55,7 @@ def main():
     copy_ea_files()
     copy_configs()
     copy_dashboards()
-    print("✅ MT5 package scaffolded at:", TARGET_ROOT)
+    print("[OK] MT5 package scaffolded at:", TARGET_ROOT)
 
 if __name__ == "__main__":
     main()
