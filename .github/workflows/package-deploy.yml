@@ -20,6 +20,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
+        shell: cmd
         run: |
           python -m pip install --upgrade pip
           if exist requirements.txt (pip install -r requirements.txt)
@@ -32,11 +33,11 @@ jobs:
         shell: cmd
         run: |
           REM Normally deploy_mt5.bat copies into local MT5 Data Folder.
-          REM In CI we just verify the script runs without error.
+          REM In CI we just verify the script runs without error. 
           scripts\deploy_mt5.bat || echo "Deployment simulated in CI"
 
       - name: Upload packaged EA artifact
         uses: actions/upload-artifact@v4
-        with: 
+        with:
           name: EA-Package
           path: dist/mt5/MQL5
