@@ -1,13 +1,13 @@
 name: Package and Deploy EA
 
 on:
-  push: 
-    branches: 
+  push:
+    branches:
       - main
   workflow_dispatch:  # allow manual runs
 
 jobs:
-  package-deploy: 
+  package-deploy:
     runs-on: windows-latest
 
     steps:
@@ -16,7 +16,7 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
-        with: 
+        with:
           python-version: '3.x'
 
       - name: Install dependencies
@@ -33,7 +33,7 @@ jobs:
         shell: cmd
         run: |
           REM Normally deploy_mt5.bat copies into local MT5 Data Folder.
-          REM In CI we just verify the script runs without error. 
+          REM In CI we just verify the script runs without error.
           scripts\deploy_mt5.bat || echo "Deployment simulated in CI"
 
       - name: Upload packaged EA artifact
