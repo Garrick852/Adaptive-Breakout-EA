@@ -31,13 +31,6 @@ jobs:
         run: |
           python scripts/package_mt5.py
 
-      - name: Deploy EA (simulate copy)
-        shell: cmd
-        run: |
-          REM Normally deploy_mt5.bat copies into local MT5 Data Folder.
-          REM In CI we just verify the script runs without error.
-          scripts\deploy_mt5.bat || echo "Deployment simulated in CI"
-
       - name: Upload packaged EA artifact
         uses: actions/upload-artifact@v4
         with:
