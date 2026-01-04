@@ -29,20 +29,10 @@ jobs:
         run: |
           python scripts/package_mt5.py
 
-      - name: Conditional Deploy EA
+      - name: Verify packaged structure
         shell: cmd
         run: |
-          REM Check if MT5 Data Folder exists on runner
-          if exist "%APPDATA%\MetaQuotes\Terminal\43A9BD896CCB6BF2DF5C71EA198AE39D\MQL5" (
-            echo "MT5 Data Folder found — running real deployment"
-            scripts\deploy_mt5.bat
-          ) else (
-            echo "⚠️ No MT5 installation on CI runner — deployment simulated"
-          )
-
-      - name: List packaged contents
-        shell: cmd
-        run: |
+          echo "Listing packaged EA contents..."
           dir dist\mt5\MQL5 /s
 
       - name: Upload packaged EA artifact
