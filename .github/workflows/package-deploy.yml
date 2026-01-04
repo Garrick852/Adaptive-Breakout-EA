@@ -9,6 +9,8 @@ on:
 jobs:
   package-deploy:
     runs-on: windows-latest
+    env:
+      PYTHONUTF8: 1
 
     steps:
       - name: Checkout repository
