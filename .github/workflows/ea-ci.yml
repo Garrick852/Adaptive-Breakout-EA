@@ -1,55 +1,54 @@
-name: EA CI
+name: EA Validation and Build
 
 on:
   push:
-    paths:
-      - "eas/AdaptiveBreakoutAI/**"
-      - "scripts/**"
-      - "configs/**"
+    branches: [ main ]
   pull_request:
-    paths:
-      - "eas/AdaptiveBreakoutAI/**"
-      - "scripts/**"
-      - "configs/**"
+    branches: [ main ]
 
 jobs:
-  validate-configs:
-    runs-on: ubuntu-latest
+  build-and-validate:
+    runs-on: windows-latest   # EA compilation requires MetaEditor on Windows
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    # 1. Validate configs
+    - name: Validate EA configs
+      run: make validate
 
-      - name: Install Python deps
-        run: |
-          python -m pip install --upgrade pip
+    # 2. Python linting + tests
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      - name: Validate EA configs
-        run: make validate-ea-configs
+    - name: Install dependencies
+      run: pip install -r requirements.txt
 
-  build-ea:
-    # Requires a Windows runner with MetaTrader 5 installed
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Run Ruff lint
+      run: ruff check python/ scripts/
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - name: Run pytest
+      run: pytest
 
-      - name: Install Python deps
-        run: |
-          python -m pip install --upgrade pip
+    # 3. Compile EA using MetaEditor CLI
+    - name: Compile EA
+      run: |
+        "C:/Program Files/MetaTrader 5/MetaEditor.exe" ^
+          /compile:eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5 ^
+          /log:logs/build.log
 
-      - name: Build EA
-        env:
-          MT5_TERMINAL_DIR: "C:\\Path\\To\\Your\\Terminal\\Folder"
-          METAEDITOR_EXE: "C:\\Program Files\\MetaTrader 5\\metaeditor64.exe"
-        run: |
-          make mt5-build
+    # 4. Upload artifacts (compiled EA + logs)
+    - name: Upload EA build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: AdaptiveBreakoutAI-ex5
+        path: eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
+
+    - name: Upload build logs
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: logs/build.log
