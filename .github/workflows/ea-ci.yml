@@ -1,0 +1,55 @@
+name: EA CI
+
+on:
+  push:
+    paths:
+      - "eas/AdaptiveBreakoutAI/**"
+      - "scripts/**"
+      - "configs/**"
+  pull_request:
+    paths:
+      - "eas/AdaptiveBreakoutAI/**"
+      - "scripts/**"
+      - "configs/**"
+
+jobs:
+  validate-configs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Validate EA configs
+        run: make validate-ea-configs
+
+  build-ea:
+    # Requires a Windows runner with MetaTrader 5 installed
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Build EA
+        env:
+          MT5_TERMINAL_DIR: "C:\\Path\\To\\Your\\Terminal\\Folder"
+          METAEDITOR_EXE: "C:\\Program Files\\MetaTrader 5\\metaeditor64.exe"
+        run: |
+          make mt5-build
