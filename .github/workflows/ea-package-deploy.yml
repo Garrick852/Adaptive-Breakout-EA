@@ -37,7 +37,6 @@ jobs:
             make validate
           } else {
             Write-Host "make not found; skipping 'make validate'"
-          }
 
       - name: Package EA
         run: |
