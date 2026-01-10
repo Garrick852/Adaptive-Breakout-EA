@@ -26,7 +26,6 @@ jobs:
             make validate
           } else {
             Write-Host "make not found; skipping 'make validate'"
-          }
 
       # 2. Python linting + tests
       - name: Set up Python
@@ -41,7 +40,6 @@ jobs:
             pip install -r requirements.txt
           } else {
             Write-Host "requirements.txt not found; skipping dependency install"
-          }
 
       - name: Run Ruff lint
         run: |
