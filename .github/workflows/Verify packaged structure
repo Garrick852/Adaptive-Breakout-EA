@@ -1,0 +1,8 @@
+      - name: Verify packaged structure
+        run: |
+          Write-Host "=== dist\mt5\MQL5 tree ==="
+          if (Test-Path "dist\mt5\MQL5") {
+            Get-ChildItem -Path "dist\mt5\MQL5" -Recurse | Format-List FullName, PSIsContainer, Length
+          } else {
+            Write-Host "dist\mt5\MQL5 does NOT exist"
+          }
