@@ -1,0 +1,49 @@
+name: Package and Deploy EA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  package-deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if exist requirements.txt (pip install -r requirements.txt)
+
+      - name: Validate configs
+        run: make validate
+
+      - name: Package EA
+        run: python scripts/package_mt5.py
+
+      - name: Verify packaged structure
+        run: dir dist\mt5\MQL5 /s
+
+      - name: Create package zip
+        run: powershell Compress-Archive -Path dist/mt5/MQL5 -DestinationPath EA-Package.zip
+
+      - name: Upload packaged EA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EA-Package
+          path: EA-Package.zip
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: logs/
