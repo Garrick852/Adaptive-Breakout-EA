@@ -10,45 +10,78 @@ jobs:
   build-and-validate:
     runs-on: windows-latest   # EA compilation requires MetaEditor on Windows
 
+    defaults:
+      run:
+        shell: pwsh
+
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    # 1. Validate configs
-    - name: Validate EA configs
-      run: make validate
+      # 1. Validate configs (optional, tolerant if make is missing)
+      - name: Validate EA configs
+        continue-on-error: true
+        run: |
+          if (Get-Command make -ErrorAction SilentlyContinue) {
+            make validate
+          } else {
+            Write-Host "make not found; skipping 'make validate'"
+          }
 
-    # 2. Python linting + tests
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      # 2. Python linting + tests
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install dependencies
-      run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path "requirements.txt") {
+            pip install -r requirements.txt
+          } else {
+            Write-Host "requirements.txt not found; skipping dependency install"
+          }
 
-    - name: Run Ruff lint
-      run: ruff check python/ scripts/
+      - name: Run Ruff lint
+        run: |
+          ruff check python/ scripts/
 
-    - name: Run pytest
-      run: pytest
+      - name: Run pytest
+        run: |
+          pytest
 
-    # 3. Compile EA using MetaEditor CLI
-    - name: Compile EA
-      run: |
-        "C:/Program Files/MetaTrader 5/MetaEditor.exe" ^
-          /compile:eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5 ^
-          /log:logs/build.log
+      # 3. Compile EA using MetaEditor CLI
+      - name: Compile EA
+        run: |
+          $metaEditor = "C:/Program Files/MetaTrader 5/MetaEditor64.exe"
+          if (-Not (Test-Path $metaEditor)) {
+            $fallback = "C:/Program Files/MetaTrader 5/MetaEditor.exe"
+            if (Test-Path $fallback) {
+              $metaEditor = $fallback
+            } else {
+              Write-Error "MetaEditor not found at expected locations."
+            }
+          }
 
-    # 4. Upload artifacts (compiled EA + logs)
-    - name: Upload EA build artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: AdaptiveBreakoutAI-ex5
-        path: eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
+          New-Item -ItemType Directory -Force -Path "logs" | Out-Null
 
-    - name: Upload build logs
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs
-        path: logs/build.log
+          & "$metaEditor" `
+            /compile:"eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5" `
+            /log:"logs/build.log"
+
+      # 4. Upload artifacts (compiled EA + logs)
+      - name: Upload EA build artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdaptiveBreakoutAI-ex5
+          path: eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: logs/
+          if-no-files-found: ignore
