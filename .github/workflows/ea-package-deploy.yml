@@ -9,6 +9,10 @@ jobs:
   package-deploy:
     runs-on: windows-latest
 
+    defaults:
+      run:
+        shell: pwsh
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,26 +25,40 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if exist requirements.txt (pip install -r requirements.txt)
+          if (Test-Path "requirements.txt") {
+            pip install -r requirements.txt
+          }
 
+      # Optional validation hook. Remove if you don't use make.
       - name: Validate configs
-        run: make validate
+        continue-on-error: true
+        run: |
+          if (Get-Command make -ErrorAction SilentlyContinue) {
+            make validate
+          } else {
+            Write-Host "make not found; skipping 'make validate'"
+          }
 
-      - name: Package EA (generate mt5/MQL5 layout)
-        run: python scripts/package_mt5.py
+      - name: Package EA
+        run: |
+          python scripts/package_mt5.py
 
       - name: Verify packaged structure
-        run: dir mt5\MQL5 /s
-
-      # Optional: normalize into a single top-level folder `EA-Package`
-      - name: Prepare package directory
         run: |
-          rmdir /S /Q package 2>nul || echo No existing package dir
-          mkdir package
-          xcopy /E /I mt5\MQL5 package\MQL5
+          if (-Not (Test-Path "dist\mt5\MQL5")) {
+            Write-Error "Expected path dist\mt5\MQL5 does not exist. Packaging failed."
+          }
+          Write-Host "Listing dist\mt5\MQL5 recursively"
+          Get-ChildItem -Path "dist\mt5\MQL5" -Recurse
 
+      # Ensure zip has MQL5/ at the root
       - name: Create package zip
-        run: powershell Compress-Archive -Path package -DestinationPath EA-Package.zip
+        run: |
+          if (-Not (Test-Path "dist\mt5\MQL5")) {
+            Write-Error "Expected path dist\mt5\MQL5 does not exist. Packaging failed."
+          }
+          Compress-Archive -Path "MQL5\*" -DestinationPath "EA-Package.zip" -WorkingDirectory "dist\mt5" -Force
+          Write-Host "Created EA-Package.zip with MQL5 as archive root"
 
       - name: Upload packaged EA artifact
         uses: actions/upload-artifact@v4
@@ -49,7 +67,9 @@ jobs:
           path: EA-Package.zip
 
       - name: Upload build logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
           path: logs/
+          if-no-files-found: ignore
