@@ -6,5 +6,8 @@ mt5-build:
 validate-ea-configs:
 	python scripts/validate_ea_config. py
 
+.PHONY: validate
+validate: validate-ea-configs
+
 .PHONY: ci-ea
 ci-ea: validate-ea-configs mt5-build
