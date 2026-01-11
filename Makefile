@@ -7,6 +7,9 @@ BIN     = eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
 LOG     = logs/build.log
 DIST    = dist/mt5
 
+# Use git commit SHA or date for version tag
+VERSION ?= $(shell git rev-parse --short HEAD 2>nul || powershell -Command "(Get-Date).ToString('yyyyMMdd-HHmm')")
+
 .PHONY: all build package clean
 
 all: build package
@@ -41,7 +44,7 @@ package: build
 
     @echo Runtime logs will be generated here. > $(DIST)/MQL5/Logs/.keep
 
-    @powershell -Command "Compress-Archive -Path 'MQL5/*' -DestinationPath 'AdaptiveBreakoutAI-Package.zip' -WorkingDirectory '$(DIST)' -Force"
+    @powershell -Command "Compress-Archive -Path 'MQL5/*' -DestinationPath 'AdaptiveBreakoutAI-Package-$(VERSION).zip' -WorkingDirectory '$(DIST)' -Force"
 
 ## Clean build artifacts
 clean:
