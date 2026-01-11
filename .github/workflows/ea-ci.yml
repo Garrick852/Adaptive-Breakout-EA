@@ -16,7 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Prepare MQL5 package structure
       - name: Prepare MQL5 package
         run: |
           $root = "dist/mt5"
@@ -26,14 +25,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/dashboards" | Out-Null
           New-Item -ItemType Directory -Force -Path "$root/MQL5/Logs" | Out-Null
 
-          # Copy precompiled EA and other assets
           Copy-Item "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5" "$root/MQL5/Experts/" -Force
           Copy-Item "Include/*.mqh" "$root/MQL5/Include/" -Force -ErrorAction SilentlyContinue
           Copy-Item "configs/*.json" "$root/MQL5/Files/configs/" -Force -ErrorAction SilentlyContinue
           Copy-Item "dashboards/*.yaml" "$root/MQL5/Files/dashboards/" -Force -ErrorAction SilentlyContinue
           'Runtime logs will be generated here.' | Out-File -Encoding utf8 "$root/MQL5/Logs/.keep"
 
-      # Create version-tagged zip
       - name: Create EA package zip
         run: |
           $version = (git rev-parse --short HEAD) -replace '\s',''
@@ -41,7 +38,6 @@ jobs:
           Compress-Archive -Path "MQL5/*" -DestinationPath "AdaptiveBreakoutAI-Package-$version.zip" -WorkingDirectory "dist/mt5" -Force
           "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      # Upload artifact
       - name: Upload EA package
         uses: actions/upload-artifact@v4
         with:
