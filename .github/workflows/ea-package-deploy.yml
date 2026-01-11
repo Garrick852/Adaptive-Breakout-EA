@@ -37,7 +37,7 @@ jobs:
           } else {
             Write-Host "make not found; skipping 'make validate'"
 
-      - name: Package EA (if you have additional packaging logic)
+      - name: Optional custom packaging hook
         run: |
           if (Test-Path "scripts\package_mt5.py") {
             python scripts/package_mt5.py
@@ -45,9 +45,9 @@ jobs:
             Write-Host "scripts/package_mt5.py not found; skipping custom packaging"
           }
 
-      - name: Ensure MQL5 folder structure and copy assets
+      - name: Ensure MQL5 structure and copy assets
         run: |
-          # Ensure base MQL5 tree exists
+          # --- Ensure base MQL5 tree ---
           New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Experts"          | Out-Null
           New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Include"          | Out-Null
           New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Indicators"       | Out-Null
@@ -57,16 +57,17 @@ jobs:
           New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Files\dashboards" | Out-Null
           New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Logs"             | Out-Null
 
-          # 1) Experts/AdaptiveBreakoutAI.ex5
-          # If your build drops the .ex5 somewhere else, adjust this source path:
-          if (Test-Path "eas\AdaptiveBreakoutAI\src\AdaptiveBreakoutAI.ex5") {
-            Copy-Item "eas\AdaptiveBreakoutAI\src\AdaptiveBreakoutAI.ex5" `
-              "dist\mt5\MQL5\Experts\AdaptiveBreakoutAI.ex5" -Force
+          # 1) Experts/AdaptiveBreakoutAI.ex5 – fail if missing
+          $eaPath = "eas\AdaptiveBreakoutAI\src\AdaptiveBreakoutAI.ex5"
+          if (-Not (Test-Path $eaPath)) {
+            Write-Error "EA build not found at $eaPath. Did you run compilation before packaging?"
           }
+          Copy-Item $eaPath "dist\mt5\MQL5\Experts\AdaptiveBreakoutAI.ex5" -Force
 
-          # 2) Include/*.mqh (adjust source as needed)
-          if (Test-Path "include") {
-            Copy-Item "include\*.mqh" "dist\mt5\MQL5\Include\" -Force -ErrorAction SilentlyContinue
+          # 2) Include/*.mqh – from EA src if that’s where they live
+          if (Test-Path "eas\AdaptiveBreakoutAI\src") {
+            Copy-Item "eas\AdaptiveBreakoutAI\src\*.mqh" `
+              "dist\mt5\MQL5\Include\" -Force -ErrorAction SilentlyContinue
           }
 
           # 3) Files/configs/*.json
@@ -122,6 +123,7 @@ jobs:
         with:
           name: EA-Package
           path: EA-Package.zip
+          retention-days: 14
 
       - name: Upload build logs
         if: always()
