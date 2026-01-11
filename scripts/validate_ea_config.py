@@ -17,7 +17,7 @@ def validate_file(path, required_keys):
         return False
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, "r") as f:
             data = json.load(f)
     except Exception as e:
         print(f"[ERROR] Failed to parse {path}: {e}")
