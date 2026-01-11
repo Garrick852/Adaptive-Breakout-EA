@@ -1,55 +1,46 @@
-name: EA Validation, Build, and Package
+name: EA CI
 
 on:
-  push: 
+  push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build-and-package:
-    runs-on: windows-latest   # MetaEditor requires Windows
+  validate-build-package:
+    runs-on: windows-latest
 
     defaults:
       run:
         shell: pwsh
 
-    steps: 
-      # 1. Checkout repo
+    steps:
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Validate configs
-      - name:  Validate EA configs
-        run:  |
-          if (Test-Path "scripts/validate_ea_config.py") {
-            python scripts/validate_ea_config.py
-          } else {
-            Write-Host "scripts/validate_ea_config.py not found; skipping validation"
-          }
-
-      # 3. Python setup + lint/tests
+      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version:  '3.11'
+          python-version: '3.11'
 
+      # 3. Install dependencies (fixed filename)
       - name: Install dependencies
-        run:  |
+        run: |
           python -m pip install --upgrade pip
           if (Test-Path "requirements.txt") {
-            pip install -r requirements. txt
-          }
-
-      - name: Run Ruff lint
-        run: |
-          if (Get-Command ruff -ErrorAction SilentlyContinue) {
-            ruff check python/ scripts/
+            pip install -r requirements.txt
           } else {
-            Write-Host "ruff not found; skipping lint"
+            Write-Host "requirements.txt not found; skipping dependency install"
           }
 
+      # 4. Run Ruff lint
+      - name: Run Ruff lint
+        run: ruff check python/ scripts/
+
+      # 5. Run pytest (if present)
       - name: Run pytest
         run: |
           if (Get-Command pytest -ErrorAction SilentlyContinue) {
@@ -58,30 +49,55 @@ jobs:
             Write-Host "pytest not found; skipping tests"
           }
 
-      # 4. Install MetaTrader 5 (MetaEditor)
-      - name: Install MetaTrader 5
+      # 6. Validate EA configs
+      - name: Validate EA configs
         run: |
-          $mt5Url = "https://download. mql5.com/cdn/web/metaquotes. software.corp/mt5/mt5setup.exe"
-          $installerPath = "$env:TEMP\mt5setup. exe"
-          
-          Write-Host "Downloading MetaTrader 5..."
-          Invoke-WebRequest -Uri $mt5Url -OutFile $installerPath
-          
-          Write-Host "Installing MetaTrader 5..."
-          Start-Process -FilePath $installerPath -ArgumentList "/auto" -Wait -NoNewWindow
-          
-          Write-Host "MetaTrader 5 installation completed"
-
-      # 5. Compile EA using MetaEditor
-      - name: Compile EA
-        run: |
-          $metaEditor = "C:/Program Files/MetaTrader 5/MetaEditor64.exe"
-          if (-Not (Test-Path $metaEditor)) {
-            $metaEditor = "C:/Program Files/MetaTrader 5/MetaEditor.exe"
+          if (Test-Path "scripts/validate_ea_config.py") {
+            python scripts/validate_ea_config.py
+          } else {
+            Write-Host "scripts/validate_ea_config.py not found; skipping validation"
           }
 
-          if (-Not (Test-Path $metaEditor)) {
-            Write-Error "MetaEditor not found at expected locations."
+      # 7. Download MetaTrader 5 installer (fixed URL and env var syntax)
+      - name: Download MetaTrader 5 installer
+        run: |
+          $installerUrl = "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe"
+          $installerPath = "$env:TEMP\mt5setup.exe"
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
+
+      # 8. Install MetaTrader 5 silently
+      - name: Install MetaTrader 5
+        run: |
+          $installerPath = "$env:TEMP\mt5setup.exe"
+          Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
+
+      # 9. Debug MetaTrader directory
+      - name: Debug MetaTrader Directory
+        run: |
+          if (Test-Path "C:/Program Files/MetaTrader 5/") {
+            Get-ChildItem "C:/Program Files/MetaTrader 5/"
+          } else {
+            Write-Host "MetaTrader 5 directory not found at C:/Program Files/MetaTrader 5/"
+          }
+
+      # 10. Compile EA to .ex5
+      - name: Compile AdaptiveBreakoutAI EA
+        run: |
+          $metaEditorCandidates = @(
+            "C:/Program Files/MetaTrader 5/MetaEditor64.exe",
+            "C:/Program Files/MetaTrader 5/MetaEditor.exe"
+          )
+
+          $metaEditor = $null
+          foreach ($p in $metaEditorCandidates) {
+            if (Test-Path $p) {
+              $metaEditor = $p
+              break
+            }
+          }
+
+          if (-not $metaEditor) {
+            Write-Error "MetaEditor not found in expected locations."
             exit 1
           }
 
@@ -89,60 +105,55 @@ jobs:
 
           & "$metaEditor" `
             /compile:"eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5" `
-            /log:"logs/build. log"
+            /log:"logs/build.log"
 
-          if (-Not (Test-Path "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5")) {
-            Write-Error "EA build not found at eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5. Check logs/build.log for errors."
+          if (-not (Test-Path "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5")) {
+            if (Test-Path "logs/build.log") {
+              Get-Content logs/build.log
+            } else {
+              Write-Host "No build log produced."
+            }
+            Write-Error "EA build failed — .ex5 not found."
             exit 1
           }
 
-      # 6. Ensure MQL5 folder structure and copy assets
-      - name:  Prepare MQL5 package
+      # 11. Prepare MQL5 package structure
+      - name: Prepare MQL5 package
         run: |
-          New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Experts" | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Include" | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Files/configs" | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Files/dashboards" | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Logs" | Out-Null
+          $root = "dist/mt5"
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Experts" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Include" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/configs" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/dashboards" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Logs" | Out-Null
 
-          # Copy EA binary
-          Copy-Item "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5" "dist/mt5/MQL5/Experts/" -Force
+          Copy-Item "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5" "$root/MQL5/Experts/" -Force
+          Copy-Item "Include/*.mqh" "$root/MQL5/Include/" -Force -ErrorAction SilentlyContinue
+          Copy-Item "configs/*.json" "$root/MQL5/Files/configs/" -Force -ErrorAction SilentlyContinue
+          Copy-Item "dashboards/*.yaml" "$root/MQL5/Files/dashboards/" -Force -ErrorAction SilentlyContinue
 
-          # Copy includes
-          Copy-Item "Include/*.mqh" "dist/mt5/MQL5/Include/" -Force -ErrorAction SilentlyContinue
+          'Runtime logs will be generated here.' | Out-File -Encoding utf8 "$root/MQL5/Logs/.keep"
 
-          # Copy configs
-          Copy-Item "configs/*.json" "dist/mt5/MQL5/Files/configs/" -Force -ErrorAction SilentlyContinue
-
-          # Copy dashboards
-          Copy-Item "dashboards/*.yaml" "dist/mt5/MQL5/Files/dashboards/" -Force -ErrorAction SilentlyContinue
-
-          # Glyphs log placeholder
-          'Glyphs log placeholder' | Out-File -Encoding utf8 "dist/mt5/MQL5/Files/glyphs.log"
-
-          # Logs placeholder
-          'Runtime logs will be generated here.' | Out-File -Encoding utf8 "dist/mt5/MQL5/Logs/. keep"
-
-      # 7. Verify packaged structure
+      # 12. Verify package tree
       - name: Verify package tree
         run: Get-ChildItem -Path "dist/mt5/MQL5" -Recurse
 
-      # 8. Create zip
+      # 13. Create zip artifact
       - name: Create EA package zip
         run: |
-          Compress-Archive -Path "MQL5/*" -DestinationPath "EA-Package.zip" -WorkingDirectory "dist/mt5" -Force
+          Compress-Archive -Path "MQL5/*" -DestinationPath "AdaptiveBreakoutAI-Package.zip" -WorkingDirectory "dist/mt5" -Force
 
-      # 9. Upload artifacts
+      # 14. Upload artifacts
       - name: Upload EA package
-        uses:  actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
-          name:  EA-Package
-          path: EA-Package.zip
+          name: AdaptiveBreakoutAI-Package
+          path: dist/mt5/AdaptiveBreakoutAI-Package.zip
           if-no-files-found: error
 
       - name: Upload build logs
         uses: actions/upload-artifact@v4
-        with: 
+        with:
           name: build-logs
           path: logs/
           if-no-files-found: ignore
