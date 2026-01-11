@@ -1,15 +1,17 @@
-name: Package and Deploy EA
+name: EA Package Deploy
 
-on: 
+on:
   push:
-    branches:  [ main ]
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  package-deploy:
-    runs-on:  windows-latest
+  package-ea:
+    runs-on: windows-latest
 
-    defaults: 
+    defaults:
       run:
         shell: pwsh
 
@@ -17,118 +19,90 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with: 
-          python-version: '3.11'
-
-      - name: Install dependencies
+      # Install MetaTrader 5 (or use your manual installer step if Chocolatey fails)
+      - name: Install MetaTrader 5
         run: |
-          python -m pip install --upgrade pip
-          if (Test-Path "requirements.txt") {
-            pip install -r requirements.txt
-          }
+          $installerUrl = "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe"
+          $installerPath = "$env:TEMP\mt5setup.exe"
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
+          Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
 
-      - name: Validate configs (optional)
-        continue-on-error: true
+      # Debug installation directory
+      - name: Debug MetaTrader Directory
         run: |
-          if (Get-Command make -ErrorAction SilentlyContinue) {
-            make validate
+          if (Test-Path "C:/Program Files/MetaTrader 5/") {
+            Get-ChildItem "C:/Program Files/MetaTrader 5/"
           } else {
-            Write-Host "make not found; skipping 'make validate'"
+            Write-Host "MetaTrader 5 directory not found at C:/Program Files/MetaTrader 5/"
           }
 
-      - name:  Optional custom packaging hook
-        run:  |
-          if (Test-Path "scripts\package_mt5.py") {
-            python scripts/package_mt5.py
-          } else {
-            Write-Host "scripts/package_mt5.py not found; skipping custom packaging"
-          }
-
-      - name: Ensure MQL5 structure and copy assets
+      # ✅ Compile EA before packaging
+      - name: Compile AdaptiveBreakoutAI EA
         run: |
-          # --- Ensure base MQL5 tree ---
-          New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Experts"          | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Include"          | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Indicators"       | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Scripts"          | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Files"            | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Files\configs"    | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Files\dashboards" | Out-Null
-          New-Item -ItemType Directory -Force -Path "dist\mt5\MQL5\Logs"             | Out-Null
+          $metaEditorCandidates = @(
+            "C:/Program Files/MetaTrader 5/MetaEditor64.exe",
+            "C:/Program Files/MetaTrader 5/MetaEditor.exe"
+          )
 
-          # 1) Experts/AdaptiveBreakoutAI.ex5 – fail if missing
-          $eaPath = "eas\AdaptiveBreakoutAI\src\AdaptiveBreakoutAI.ex5"
-          if (-Not (Test-Path $eaPath)) {
-            Write-Error "EA build not found at $eaPath. Did you run compilation before packaging?"
+          $metaEditor = $null
+          foreach ($p in $metaEditorCandidates) {
+            if (Test-Path $p) {
+              $metaEditor = $p
+              break
+            }
+          }
+
+          if (-not $metaEditor) {
+            Write-Error "MetaEditor not found in expected locations."
             exit 1
           }
-          Copy-Item $eaPath "dist\mt5\MQL5\Experts\AdaptiveBreakoutAI.ex5" -Force
 
-          # 2) Include/*.mqh – from EA src if that's where they live
-          if (Test-Path "eas\AdaptiveBreakoutAI\src") {
-            Copy-Item "eas\AdaptiveBreakoutAI\src\*.mqh" `
-              "dist\mt5\MQL5\Include\" -Force -ErrorAction SilentlyContinue
-          }
+          New-Item -ItemType Directory -Force -Path "logs" | Out-Null
 
-          # 3) Files/configs/*.json
-          if (Test-Path "configs\ea_config.json") {
-            Copy-Item "configs\ea_config.json" `
-              "dist\mt5\MQL5\Files\configs\ea_config.json" -Force
-          }
-          if (Test-Path "configs\router_config.json") {
-            Copy-Item "configs\router_config.json" `
-              "dist\mt5\MQL5\Files\configs\router_config.json" -Force
-          }
+          & "$metaEditor" `
+            /compile:"eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5" `
+            /log:"logs/build.log"
 
-          # 4) Files/dashboards/router_demo.yaml
-          if (Test-Path "dashboards\router_demo.yaml") {
-            Copy-Item "dashboards\router_demo.yaml" `
-              "dist\mt5\MQL5\Files\dashboards\router_demo.yaml" -Force
-          }
-
-          # 5) Files/glyphs.log – placeholder if not present
-          if (-Not (Test-Path "dist\mt5\MQL5\Files\glyphs.log")) {
-            'Glyphs/log placeholder (runtime file will overwrite this).' |
-              Out-File -Encoding utf8 "dist\mt5\MQL5\Files\glyphs.log"
-          }
-
-          # 6) Logs/.keep – ensure Logs folder is non-empty in archive
-          'Runtime logs will be generated by MetaTrader here.' |
-            Out-File -Encoding utf8 "dist\mt5\MQL5\Logs\. keep"
-
-      - name:  Verify packaged structure
-        run:  |
-          if (-Not (Test-Path "dist\mt5\MQL5")) {
-            Write-Error "dist\mt5\MQL5 does not exist before zipping"
+          if (-not (Test-Path "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5")) {
+            if (Test-Path "logs/build.log") {
+              Get-Content logs/build.log
+            }
+            Write-Error "EA build failed — .ex5 not found."
             exit 1
           }
-          Write-Host "=== dist\mt5\MQL5 tree ==="
-          Get-ChildItem -Path "dist\mt5\MQL5" -Recurse | Format-List FullName, PSIsContainer, Length
 
-      - name: Create package zip with MQL5 at root
+      # Ensure MQL5 structure and copy assets
+      - name: Prepare MQL5 package
         run: |
-          if (-Not (Test-Path "dist\mt5\MQL5")) {
-            Write-Error "Expected path dist\mt5\MQL5 does not exist. Packaging failed."
-            exit 1
-          }
+          $root = "dist/mt5"
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Experts" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Include" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/configs" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/dashboards" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Logs" | Out-Null
 
-          Push-Location "dist\mt5"
-          Compress-Archive -Path "MQL5" -DestinationPath ".. \. .\EA-Package.zip" -Force
-          Pop-Location
+          Copy-Item "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5" "$root/MQL5/Experts/" -Force
+          Copy-Item "Include/*.mqh" "$root/MQL5/Include/" -Force -ErrorAction SilentlyContinue
+          Copy-Item "configs/*.json" "$root/MQL5/Files/configs/" -Force -ErrorAction SilentlyContinue
+          Copy-Item "dashboards/*.yaml" "$root/MQL5/Files/dashboards/" -Force -ErrorAction SilentlyContinue
 
-          Write-Host "Created EA-Package.zip with MQL5 as archive root"
+          'Runtime logs will be generated here.' | Out-File -Encoding utf8 "$root/MQL5/Logs/.keep"
 
-      - name:  Upload packaged EA artifact
+      - name: Verify package tree
+        run: Get-ChildItem -Path "dist/mt5/MQL5" -Recurse
+
+      - name: Create EA package zip
+        run: |
+          Compress-Archive -Path "MQL5/*" -DestinationPath "AdaptiveBreakoutAI-Package.zip" -WorkingDirectory "dist/mt5" -Force
+
+      - name: Upload EA package
         uses: actions/upload-artifact@v4
         with:
-          name: EA-Package
-          path:  EA-Package.zip
-          retention-days: 14
+          name: AdaptiveBreakoutAI-Package
+          path: dist/mt5/AdaptiveBreakoutAI-Package.zip
+          if-no-files-found: error
 
       - name: Upload build logs
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
