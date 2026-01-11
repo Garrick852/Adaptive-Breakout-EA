@@ -1,6 +1,11 @@
 {
   "routes": {
-    "default": "AdaptiveBreakoutAI"
+    "default": "AdaptiveBreakoutAI",
+    "dashboard": "dashboards/router_demo.yaml"
   },
-  "default": "AdaptiveBreakoutAI"
+  "default": "AdaptiveBreakoutAI",
+  "metadata": {
+    "version": "0.1.0",
+    "description": "Placeholder router config for AdaptiveBreakoutAI EA"
+  }
 }
