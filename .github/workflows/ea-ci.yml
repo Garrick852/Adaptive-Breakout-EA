@@ -1,7 +1,7 @@
 name: EA Validation, Build, and Package
 
 on:
-  push:
+  push: 
     branches: [ main ]
   pull_request:
     branches: [ main ]
@@ -15,14 +15,14 @@ jobs:
       run:
         shell: pwsh
 
-    steps:
+    steps: 
       # 1. Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # 2. Validate configs
-      - name: Validate EA configs
-        run: |
+      - name:  Validate EA configs
+        run:  |
           if (Test-Path "scripts/validate_ea_config.py") {
             python scripts/validate_ea_config.py
           } else {
@@ -33,13 +33,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version:  '3.11'
 
       - name: Install dependencies
-        run: |
+        run:  |
           python -m pip install --upgrade pip
           if (Test-Path "requirements.txt") {
-            pip install -r requirements.txt
+            pip install -r requirements. txt
           }
 
       - name: Run Ruff lint
@@ -61,7 +61,16 @@ jobs:
       # 4. Install MetaTrader 5 (MetaEditor)
       - name: Install MetaTrader 5
         run: |
-          choco install metatrader5 --yes
+          $mt5Url = "https://download. mql5.com/cdn/web/metaquotes. software.corp/mt5/mt5setup.exe"
+          $installerPath = "$env:TEMP\mt5setup. exe"
+          
+          Write-Host "Downloading MetaTrader 5..."
+          Invoke-WebRequest -Uri $mt5Url -OutFile $installerPath
+          
+          Write-Host "Installing MetaTrader 5..."
+          Start-Process -FilePath $installerPath -ArgumentList "/auto" -Wait -NoNewWindow
+          
+          Write-Host "MetaTrader 5 installation completed"
 
       # 5. Compile EA using MetaEditor
       - name: Compile EA
@@ -80,7 +89,7 @@ jobs:
 
           & "$metaEditor" `
             /compile:"eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5" `
-            /log:"logs/build.log"
+            /log:"logs/build. log"
 
           if (-Not (Test-Path "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5")) {
             Write-Error "EA build not found at eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5. Check logs/build.log for errors."
@@ -88,7 +97,7 @@ jobs:
           }
 
       # 6. Ensure MQL5 folder structure and copy assets
-      - name: Prepare MQL5 package
+      - name:  Prepare MQL5 package
         run: |
           New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Experts" | Out-Null
           New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Include" | Out-Null
@@ -112,7 +121,7 @@ jobs:
           'Glyphs log placeholder' | Out-File -Encoding utf8 "dist/mt5/MQL5/Files/glyphs.log"
 
           # Logs placeholder
-          'Runtime logs will be generated here.' | Out-File -Encoding utf8 "dist/mt5/MQL5/Logs/.keep"
+          'Runtime logs will be generated here.' | Out-File -Encoding utf8 "dist/mt5/MQL5/Logs/. keep"
 
       # 7. Verify packaged structure
       - name: Verify package tree
@@ -125,15 +134,15 @@ jobs:
 
       # 9. Upload artifacts
       - name: Upload EA package
-        uses: actions/upload-artifact@v4
+        uses:  actions/upload-artifact@v4
         with:
-          name: EA-Package
+          name:  EA-Package
           path: EA-Package.zip
           if-no-files-found: error
 
       - name: Upload build logs
         uses: actions/upload-artifact@v4
-        with:
+        with: 
           name: build-logs
           path: logs/
           if-no-files-found: ignore
