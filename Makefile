@@ -4,7 +4,7 @@ mt5-build:
 
 .PHONY: validate-ea-configs
 validate-ea-configs:
-	python scripts/validate_ea_config. py
+	python scripts/validate_ea_config.py
 
 .PHONY: validate
 validate: validate-ea-configs
