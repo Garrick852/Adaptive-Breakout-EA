@@ -3,7 +3,7 @@ name: EA Validation and Build
 on:
   push:
     branches: [ main ]
-  pull_request:
+  pull_request: 
     branches: [ main ]
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses:  actions/checkout@v4
 
       # 1) Validate configs (make target now matches Makefile)
       - name: Validate EA configs
@@ -29,7 +29,7 @@ jobs:
       # 2) Python linting + tests (fail-fast)
       - name: Set up Python
         uses: actions/setup-python@v5
-        with:
+        with: 
           python-version: '3.11'
 
       - name: Install dependencies
@@ -45,7 +45,12 @@ jobs:
       - name: Run pytest
         run: pytest
 
-      # 3) Compile EA using MetaEditor CLI
+      # 3) Install MetaTrader 5 (MetaEditor)
+      - name: Install MetaTrader 5
+        run: |
+          choco install metatrader5 --yes
+
+      # 4) Compile EA using MetaEditor CLI
       - name: Compile EA
         run: |
           $metaEditor = "C:/Program Files/MetaTrader 5/MetaEditor64.exe"
@@ -65,11 +70,11 @@ jobs:
             /compile:"eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5" `
             /log:"logs/build.log"
 
-      # 4) Upload artifacts (artifact upload tolerant, logs always)
+      # 5) Upload artifacts (artifact upload tolerant, logs always)
       - name: Upload EA build artifact
         if: always()
         uses: actions/upload-artifact@v4
-        with:
+        with: 
           name: AdaptiveBreakoutAI-ex5
           path: eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
           if-no-files-found: ignore
@@ -78,6 +83,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs
+          name:  build-logs
           path: logs/
           if-no-files-found: ignore
