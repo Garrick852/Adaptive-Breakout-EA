@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import sys
 
 # Required keys for each config file
@@ -13,7 +13,7 @@ def validate_file(path, required_keys):
         print(f"[ERROR] Config file not found: {path}")
         return False
 
-    try:
+    try: 
         # Simplified open call, no invalid or redundant mode argument
         with open(path) as f:
             data = json.load(f)
@@ -22,7 +22,7 @@ def validate_file(path, required_keys):
         return False
 
     missing = [key for key in required_keys if key not in data]
-    if missing:
+    if missing: 
         print(f"[ERROR] {path} missing keys: {', '.join(missing)}")
         return False
 
@@ -35,7 +35,7 @@ def main():
     all_good = True
 
     for filename, required in REQUIRED_KEYS.items():
-        cfg = os.path.join(configs_dir, filename)
+        cfg = os.path. join(configs_dir, filename)
         if not validate_file(cfg, required):
             all_good = False
 
