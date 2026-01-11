@@ -1,0 +1,12 @@
+{
+  "strategy": "AdaptiveBreakoutAI",
+  "risk": {
+    "maxDrawdown": 0.2,
+    "lotSize": 0.1
+  },
+  "parameters": {
+    "breakoutThreshold": 1.5,
+    "stopLoss": 50,
+    "takeProfit": 100
+  }
+}
