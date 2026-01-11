@@ -1,20 +1,20 @@
 name: EA Validation and Build
 
 on:
-  push:
+  push: 
     branches: [ main ]
   pull_request: 
     branches: [ main ]
 
-jobs:
-  build-and-validate:
+jobs: 
+  build-and-validate: 
     runs-on: windows-latest
     defaults:
       run:
         shell: pwsh
 
     steps:
-      - name: Checkout repo
+      - name:  Checkout repo
         uses:  actions/checkout@v4
 
       # 1) Validate configs (make target now matches Makefile)
@@ -40,7 +40,7 @@ jobs:
           }
 
       - name: Run Ruff lint
-        run: ruff check python/ scripts/
+        run:  ruff check python/ scripts/
 
       - name: Run pytest
         run: pytest
@@ -48,7 +48,32 @@ jobs:
       # 3) Install MetaTrader 5 (MetaEditor)
       - name: Install MetaTrader 5
         run: |
-          choco install metatrader5 --yes
+          # Download MT5 installer
+          $installerUrl = "https://download.mql5.com/cdn/web/metaquotes. software.corp/mt5/mt5setup.exe"
+          $installerPath = "$env: TEMP\mt5setup.exe"
+          
+          Write-Host "Downloading MetaTrader 5..."
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
+          
+          Write-Host "Installing MetaTrader 5..."
+          Start-Process -FilePath $installerPath -ArgumentList "/auto" -Wait -NoNewWindow
+          
+          # Wait for installation to complete
+          Start-Sleep -Seconds 30
+          
+          # Verify installation
+          $metaEditor = "C:\Program Files\MetaTrader 5\MetaEditor64.exe"
+          if (Test-Path $metaEditor) {
+            Write-Host "MetaTrader 5 installed successfully at: $metaEditor"
+          } else {
+            Write-Warning "MetaEditor64.exe not found, checking alternate location..."
+            if (Test-Path "C:\Program Files\MetaTrader 5\MetaEditor. exe") {
+              Write-Host "Found MetaEditor. exe"
+            } else {
+              Write-Error "MetaEditor not found after installation"
+              exit 1
+            }
+          }
 
       # 4) Compile EA using MetaEditor CLI
       - name: Compile EA
@@ -76,11 +101,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with: 
           name: AdaptiveBreakoutAI-ex5
-          path: eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
+          path:  eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
           if-no-files-found: ignore
 
       - name: Upload build logs
-        if: always()
+        if:  always()
         uses: actions/upload-artifact@v4
         with:
           name:  build-logs
