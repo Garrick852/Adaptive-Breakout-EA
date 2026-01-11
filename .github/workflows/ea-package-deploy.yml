@@ -16,14 +16,16 @@ jobs:
         shell: pwsh
 
     steps:
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install MetaTrader 5 so MetaEditor is available
+      # 2. Install MetaTrader 5 (with prerelease flag if needed)
       - name: Install MetaTrader 5
-        run: choco install metatrader5 --yes
+        run: |
+          choco install metatrader5 --yes --pre
 
-      # Build EA (compile .mq5 into .ex5)
+      # 3. Build EA (compile .mq5 into .ex5)
       - name: Build EA
         run: |
           $metaEditor = "C:/Program Files/MetaTrader 5/MetaEditor64.exe"
@@ -47,7 +49,7 @@ jobs:
             exit 1
           }
 
-      # Prepare MQL5 package structure
+      # 4. Prepare MQL5 package structure
       - name: Prepare MQL5 package
         run: |
           New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Experts" | Out-Null
@@ -56,24 +58,34 @@ jobs:
           New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Files/dashboards" | Out-Null
           New-Item -ItemType Directory -Force -Path "dist/mt5/MQL5/Logs" | Out-Null
 
+          # Copy EA binary
           Copy-Item "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5" "dist/mt5/MQL5/Experts/" -Force
+
+          # Copy includes
           Copy-Item "Include/*.mqh" "dist/mt5/MQL5/Include/" -Force -ErrorAction SilentlyContinue
+
+          # Copy configs
           Copy-Item "configs/*.json" "dist/mt5/MQL5/Files/configs/" -Force -ErrorAction SilentlyContinue
+
+          # Copy dashboards
           Copy-Item "dashboards/*.yaml" "dist/mt5/MQL5/Files/dashboards/" -Force -ErrorAction SilentlyContinue
 
+          # Glyphs log placeholder
           'Glyphs log placeholder' | Out-File -Encoding utf8 "dist/mt5/MQL5/Files/glyphs.log"
+
+          # Logs placeholder
           'Runtime logs will be generated here.' | Out-File -Encoding utf8 "dist/mt5/MQL5/Logs/.keep"
 
-      # Verify package tree
+      # 5. Verify package tree
       - name: Verify package tree
         run: Get-ChildItem -Path "dist/mt5/MQL5" -Recurse
 
-      # Create zip
+      # 6. Create zip
       - name: Create EA package zip
         run: |
           Compress-Archive -Path "MQL5/*" -DestinationPath "EA-Package.zip" -WorkingDirectory "dist/mt5" -Force
 
-      # Upload artifacts
+      # 7. Upload artifacts
       - name: Upload EA package
         uses: actions/upload-artifact@v4
         with:
