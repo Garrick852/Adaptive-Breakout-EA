@@ -16,108 +16,73 @@ jobs:
         shell: pwsh
 
     steps:
-      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Python
+      # Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 3. Install dependencies (fixed filename)
+      # Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if (Test-Path "requirements.txt") {
             pip install -r requirements.txt
-          } else {
-            Write-Host "requirements.txt not found; skipping dependency install"
           }
 
-      # 4. Run Ruff lint
+      # Run Ruff lint
       - name: Run Ruff lint
         run: ruff check python/ scripts/
 
-      # 5. Run pytest (if present)
+      # Run pytest (optional)
       - name: Run pytest
         run: |
           if (Get-Command pytest -ErrorAction SilentlyContinue) {
             pytest
-          } else {
-            Write-Host "pytest not found; skipping tests"
           }
 
-      # 6. Validate EA configs
+      # Validate configs
       - name: Validate EA configs
         run: |
           if (Test-Path "scripts/validate_ea_config.py") {
             python scripts/validate_ea_config.py
-          } else {
-            Write-Host "scripts/validate_ea_config.py not found; skipping validation"
           }
 
-      # 7. Download MetaTrader 5 installer (fixed URL and env var syntax)
+      # Download MetaTrader 5 installer
       - name: Download MetaTrader 5 installer
         run: |
           $installerUrl = "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe"
           $installerPath = "$env:TEMP\mt5setup.exe"
           Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
 
-      # 8. Install MetaTrader 5 silently
+      # Install MetaTrader 5 silently
       - name: Install MetaTrader 5
         run: |
           $installerPath = "$env:TEMP\mt5setup.exe"
           Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
 
-      # 9. Debug MetaTrader directory
-      - name: Debug MetaTrader Directory
-        run: |
-          if (Test-Path "C:/Program Files/MetaTrader 5/") {
-            Get-ChildItem "C:/Program Files/MetaTrader 5/"
-          } else {
-            Write-Host "MetaTrader 5 directory not found at C:/Program Files/MetaTrader 5/"
-          }
-
-      # 10. Compile EA to .ex5
+      # Compile EA
       - name: Compile AdaptiveBreakoutAI EA
         run: |
           $metaEditorCandidates = @(
             "C:/Program Files/MetaTrader 5/MetaEditor64.exe",
             "C:/Program Files/MetaTrader 5/MetaEditor.exe"
           )
-
           $metaEditor = $null
           foreach ($p in $metaEditorCandidates) {
-            if (Test-Path $p) {
-              $metaEditor = $p
-              break
-            }
+            if (Test-Path $p) { $metaEditor = $p; break }
           }
-
-          if (-not $metaEditor) {
-            Write-Error "MetaEditor not found in expected locations."
-            exit 1
-          }
-
+          if (-not $metaEditor) { Write-Error "MetaEditor not found"; exit 1 }
           New-Item -ItemType Directory -Force -Path "logs" | Out-Null
-
-          & "$metaEditor" `
-            /compile:"eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5" `
-            /log:"logs/build.log"
-
+          & "$metaEditor" /compile:"eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5" /log:"logs/build.log"
           if (-not (Test-Path "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5")) {
-            if (Test-Path "logs/build.log") {
-              Get-Content logs/build.log
-            } else {
-              Write-Host "No build log produced."
-            }
-            Write-Error "EA build failed — .ex5 not found."
-            exit 1
+            Write-Error "EA build failed — .ex5 not found"; exit 1
           }
 
-      # 11. Prepare MQL5 package structure
+      # Prepare MQL5 package
       - name: Prepare MQL5 package
         run: |
           $root = "dist/mt5"
@@ -126,29 +91,26 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/configs" | Out-Null
           New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/dashboards" | Out-Null
           New-Item -ItemType Directory -Force -Path "$root/MQL5/Logs" | Out-Null
-
           Copy-Item "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5" "$root/MQL5/Experts/" -Force
           Copy-Item "Include/*.mqh" "$root/MQL5/Include/" -Force -ErrorAction SilentlyContinue
           Copy-Item "configs/*.json" "$root/MQL5/Files/configs/" -Force -ErrorAction SilentlyContinue
           Copy-Item "dashboards/*.yaml" "$root/MQL5/Files/dashboards/" -Force -ErrorAction SilentlyContinue
-
           'Runtime logs will be generated here.' | Out-File -Encoding utf8 "$root/MQL5/Logs/.keep"
 
-      # 12. Verify package tree
-      - name: Verify package tree
-        run: Get-ChildItem -Path "dist/mt5/MQL5" -Recurse
-
-      # 13. Create zip artifact
+      # Create version-tagged zip
       - name: Create EA package zip
         run: |
-          Compress-Archive -Path "MQL5/*" -DestinationPath "AdaptiveBreakoutAI-Package.zip" -WorkingDirectory "dist/mt5" -Force
+          $version = (git rev-parse --short HEAD) -replace '\s',''
+          if (-not $version) { $version = (Get-Date).ToString("yyyyMMdd-HHmm") }
+          Compress-Archive -Path "MQL5/*" -DestinationPath "AdaptiveBreakoutAI-Package-$version.zip" -WorkingDirectory "dist/mt5" -Force
+          "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      # 14. Upload artifacts
+      # Upload artifacts
       - name: Upload EA package
         uses: actions/upload-artifact@v4
         with:
-          name: AdaptiveBreakoutAI-Package
-          path: dist/mt5/AdaptiveBreakoutAI-Package.zip
+          name: AdaptiveBreakoutAI-Package-${{ env.PACKAGE_VERSION }}
+          path: dist/mt5/AdaptiveBreakoutAI-Package-${{ env.PACKAGE_VERSION }}.zip
           if-no-files-found: error
 
       - name: Upload build logs
