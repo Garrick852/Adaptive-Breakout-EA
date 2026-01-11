@@ -3,7 +3,7 @@ name: EA Validation and Build
 on:
   push: 
     branches: [ main ]
-  pull_request: 
+  pull_request:
     branches: [ main ]
 
 jobs: 
@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name:  Checkout repo
-        uses:  actions/checkout@v4
+        uses: actions/checkout@v4
 
       # 1) Validate configs (make target now matches Makefile)
       - name: Validate EA configs
@@ -67,7 +67,7 @@ jobs:
             Write-Host "MetaTrader 5 installed successfully at: $metaEditor"
           } else {
             Write-Warning "MetaEditor64.exe not found, checking alternate location..."
-            if (Test-Path "C:\Program Files\MetaTrader 5\MetaEditor. exe") {
+            if (Test-Path "C:\Program Files\MetaTrader 5\MetaEditor.exe") {
               Write-Host "Found MetaEditor. exe"
             } else {
               Write-Error "MetaEditor not found after installation"
@@ -101,13 +101,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with: 
           name: AdaptiveBreakoutAI-ex5
-          path:  eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
+          path: eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
           if-no-files-found: ignore
 
       - name: Upload build logs
-        if:  always()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name:  build-logs
-          path: logs/
+          name: build-logs
+          path:  logs/
           if-no-files-found: ignore
