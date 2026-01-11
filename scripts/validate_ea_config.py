@@ -1,11 +1,8 @@
 import os
 import json
 import sys
-import io
 
-# Force UTF-8 output even on Windows
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-
+# Required keys for each config file
 REQUIRED_KEYS = {
     "ea_config.json": ["strategy", "risk", "parameters"],
     "router_config.json": ["routes", "default"]
@@ -17,7 +14,8 @@ def validate_file(path, required_keys):
         return False
 
     try:
-        with open(path, "") as f:
+        # Corrected: use "r" mode, no empty string
+        with open(path, "r") as f:
             data = json.load(f)
     except Exception as e:
         print(f"[ERROR] Failed to parse {path}: {e}")
