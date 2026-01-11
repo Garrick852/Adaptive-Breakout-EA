@@ -2,11 +2,18 @@
   "strategy": "AdaptiveBreakoutAI",
   "risk": {
     "maxDrawdown": 0.2,
-    "lotSize": 0.1
+    "lotSize": 0.1,
+    "riskPerTrade": 0.01
   },
   "parameters": {
     "breakoutThreshold": 1.5,
     "stopLoss": 50,
-    "takeProfit": 100
+    "takeProfit": 100,
+    "movingAveragePeriod": 20,
+    "volatilityWindow": 14
+  },
+  "metadata": {
+    "version": "0.1.0",
+    "description": "Placeholder EA config for AdaptiveBreakoutAI"
   }
 }
