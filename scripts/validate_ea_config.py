@@ -15,7 +15,7 @@ def validate_single_config(path: Path) -> bool:
     print(f"[INFO] Validating config: {path}")
     try:
         cfg = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as e: 
+    except Exception as e:
         print(f"[ERROR] Failed to parse JSON: {e}")
         return False
 
@@ -35,14 +35,14 @@ def validate_single_config(path: Path) -> bool:
     ck(0 <= max_dd <= 30, "InpMaxTotalDDPct out of [0,30]")
     ck(0 <= risk_pct <= 5, "InpRiskPercentPerTrade out of [0,5]")
 
-    atr_period = cfg. get("InpATRPeriod", 0)
+    atr_period = cfg.get("InpATRPeriod", 0)
     ck(atr_period > 0, "InpATRPeriod must be > 0")
 
     return ok
 
 
 def main():
-    if not CONFIG_DIR. exists():
+    if not CONFIG_DIR.exists():
         print("[INFO] No configs directory; skipping.")
         sys.exit(0)
 
