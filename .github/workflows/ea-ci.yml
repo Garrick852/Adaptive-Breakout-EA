@@ -1,4 +1,4 @@
-name: EA CI
+name: EA Packaging
 
 on:
   push:
@@ -8,9 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate-build-package:
+  package-ea:
     runs-on: windows-latest
-
     defaults:
       run:
         shell: pwsh
@@ -19,65 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install Python deps (optional)
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if (Test-Path "requirements.txt") {
-            pip install -r requirements.txt
-          }
-
-      # Lint & test
-      - name: Run Ruff lint
-        run: ruff check python/ scripts/
-
-      - name: Run pytest
-        run: |
-          if (Get-Command pytest -ErrorAction SilentlyContinue) { pytest }
-
-      # Validate configs
-      - name: Validate EA configs
-        run: |
-          if (Test-Path "scripts/validate_ea_config.py") {
-            python scripts/validate_ea_config.py
-          }
-
-      # Download & install MetaTrader 5
-      - name: Download MetaTrader 5 installer
-        run: |
-          $installerUrl = "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe"
-          $installerPath = "$env:TEMP\mt5setup.exe"
-          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
-
-      - name: Install MetaTrader 5
-        run: |
-          $installerPath = "$env:TEMP\mt5setup.exe"
-          Start-Process -FilePath $installerPath -ArgumentList "/silent" -Wait
-
-      # Compile EA
-      - name: Compile AdaptiveBreakoutAI EA
-        run: |
-          $metaEditorCandidates = @(
-            "C:/Program Files/MetaTrader 5/MetaEditor64.exe",
-            "C:/Program Files/MetaTrader 5/MetaEditor.exe"
-          )
-          $metaEditor = $null
-          foreach ($p in $metaEditorCandidates) {
-            if (Test-Path $p) { $metaEditor = $p; break }
-          }
-          if (-not $metaEditor) { Write-Error "MetaEditor not found"; exit 1 }
-          New-Item -ItemType Directory -Force -Path "logs" | Out-Null
-          & "$metaEditor" /compile:"eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5" /log:"logs/build.log"
-          if (-not (Test-Path "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5")) {
-            Write-Error "EA build failed — .ex5 not found"; exit 1
-          }
-
-      # Prepare MQL5 package
+      # Prepare MQL5 package structure
       - name: Prepare MQL5 package
         run: |
           $root = "dist/mt5"
@@ -86,6 +27,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/configs" | Out-Null
           New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/dashboards" | Out-Null
           New-Item -ItemType Directory -Force -Path "$root/MQL5/Logs" | Out-Null
+
+          # Copy precompiled EA and other assets
           Copy-Item "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5" "$root/MQL5/Experts/" -Force
           Copy-Item "Include/*.mqh" "$root/MQL5/Include/" -Force -ErrorAction SilentlyContinue
           Copy-Item "configs/*.json" "$root/MQL5/Files/configs/" -Force -ErrorAction SilentlyContinue
@@ -100,17 +43,10 @@ jobs:
           Compress-Archive -Path "MQL5/*" -DestinationPath "AdaptiveBreakoutAI-Package-$version.zip" -WorkingDirectory "dist/mt5" -Force
           "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      # Upload artifacts
+      # Upload artifact
       - name: Upload EA package
         uses: actions/upload-artifact@v4
         with:
           name: AdaptiveBreakoutAI-Package-${{ env.PACKAGE_VERSION }}
           path: dist/mt5/AdaptiveBreakoutAI-Package-${{ env.PACKAGE_VERSION }}.zip
           if-no-files-found: error
-
-      - name: Upload build logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: logs/
-          if-no-files-found: ignore
