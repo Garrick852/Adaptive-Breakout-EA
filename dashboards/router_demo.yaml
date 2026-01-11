@@ -1,0 +1,26 @@
+# Router Demo Dashboard Placeholder
+# This file provides a minimal structure for EA dashboard configs.
+# Expand with real routes, widgets, and parameters as needed.
+
+dashboard:
+  name: Router Demo
+  version: 0.1.0
+  description: >
+    Placeholder dashboard for AdaptiveBreakoutAI EA.
+    Replace with real routing and visualization configs.
+
+routes:
+  - id: default
+    path: /
+    description: Default route for EA dashboard
+    widgets:
+      - type: chart
+        title: Breakout Thresholds
+        data_source: configs/ea_config.json
+      - type: table
+        title: Risk Parameters
+        data_source: configs/ea_config.json
+
+settings:
+  theme: light
+  refresh_interval: 30s
