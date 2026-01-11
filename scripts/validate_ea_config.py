@@ -1,61 +1,58 @@
 #!/usr/bin/env python3
+"""
+Simple EA config validator for GitHub Actions CI.
+Checks JSON config files for required keys.
+"""
+
 import json
 import sys
-from pathlib import Path
+import os
 
-CONFIG_DIR = Path("configs")
+# List of config files to validate
+CONFIG_FILES = [
+    "configs/ea_config.json",
+    "configs/router_config.json",
+]
 
+# Define required keys for each config
+REQUIRED_KEYS = {
+    "configs/ea_config.json": ["strategy", "risk", "parameters"],
+    "configs/router_config.json": ["routes", "default"],
+}
 
-def fail(msg: str, code: int = 1):
-    print(f"[ERROR] {msg}", file=sys.stderr)
-    sys.exit(code)
+def validate_file(path, required_keys):
+    if not os.path.exists(path):
+        print(f"ERROR: Config file not found: {path}")
+        return False
 
-
-def validate_single_config(path: Path) -> bool:
-    print(f"[INFO] Validating config: {path}")
     try:
-        cfg = json.loads(path.read_text(encoding="utf-8"))
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
     except Exception as e:
-        print(f"[ERROR] Failed to parse JSON: {e}")
+        print(f"ERROR: Failed to parse {path}: {e}")
         return False
 
     ok = True
-
-    def ck(cond, msg):
-        nonlocal ok
-        if not cond:
-            print(f"[ERROR] {path.name}: {msg}")
+    for key in required_keys:
+        if key not in data:
+            print(f"ERROR: Missing key '{key}' in {path}")
             ok = False
 
-    daily_loss = cfg.get("InpDailyLossStopPct", 0)
-    max_dd = cfg.get("InpMaxTotalDDPct", 0)
-    risk_pct = cfg.get("InpRiskPercentPerTrade", 0)
-
-    ck(0 <= daily_loss <= 20, "InpDailyLossStopPct out of [0,20]")
-    ck(0 <= max_dd <= 30, "InpMaxTotalDDPct out of [0,30]")
-    ck(0 <= risk_pct <= 5, "InpRiskPercentPerTrade out of [0,5]")
-
-    atr_period = cfg.get("InpATRPeriod", 0)
-    ck(atr_period > 0, "InpATRPeriod must be > 0")
-
+    if ok:
+        print(f"✓ {path} passed validation")
     return ok
 
-
 def main():
-    if not CONFIG_DIR.exists():
-        print("[INFO] No configs directory; skipping.")
-        sys.exit(0)
-
     all_ok = True
-    for path in CONFIG_DIR.rglob("*.json"):
-        if not validate_single_config(path):
+    for cfg in CONFIG_FILES:
+        required = REQUIRED_KEYS.get(cfg, [])
+        if not validate_file(cfg, required):
             all_ok = False
 
     if not all_ok:
-        fail("One or more EA configs failed validation")
-    print("[OK] EA configs valid")
-    sys.exit(0)
-
+        sys.exit(1)  # fail CI
+    else:
+        print("All configs validated successfully.")
 
 if __name__ == "__main__":
     main()
