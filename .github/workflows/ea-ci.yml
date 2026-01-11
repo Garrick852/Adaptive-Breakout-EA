@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest   # EA compilation requires MetaEditor on Windows
 
     defaults:
-      run:
+      run: 
         shell: pwsh
 
     steps:
@@ -26,6 +26,7 @@ jobs:
             make validate
           } else {
             Write-Host "make not found; skipping 'make validate'"
+          }
 
       # 2. Python linting + tests
       - name: Set up Python
@@ -40,6 +41,7 @@ jobs:
             pip install -r requirements.txt
           } else {
             Write-Host "requirements.txt not found; skipping dependency install"
+          }
 
       - name: Run Ruff lint
         run: |
@@ -59,6 +61,7 @@ jobs:
               $metaEditor = $fallback
             } else {
               Write-Error "MetaEditor not found at expected locations."
+              exit 1
             }
           }
 
@@ -72,12 +75,12 @@ jobs:
       - name: Upload EA build artifact
         if: success()
         uses: actions/upload-artifact@v4
-        with:
+        with: 
           name: AdaptiveBreakoutAI-ex5
           path: eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
 
       - name: Upload build logs
-        if: always()
+        if:  always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
