@@ -14,8 +14,8 @@ def validate_file(path, required_keys):
         return False
 
     try:
-        # Corrected: use "r" mode, no empty string
-        with open(path, "r") as f:
+        # Simplified open call, no invalid or redundant mode argument
+        with open(path) as f:
             data = json.load(f)
     except Exception as e:
         print(f"[ERROR] Failed to parse {path}: {e}")
