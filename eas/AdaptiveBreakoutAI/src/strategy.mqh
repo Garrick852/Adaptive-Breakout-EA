@@ -1,11 +1,27 @@
-// strategy.mqh
-// Core breakout logic and signal generation
+//+------------------------------------------------------------------+
+//| strategy.mqh - Placeholder include for AdaptiveBreakoutAI EA     |
+//| Provides basic structure for strategy functions                  |
+//+------------------------------------------------------------------+
 
 #ifndef __STRATEGY_MQH__
 #define __STRATEGY_MQH__
 
-bool IsBreakout(double price, double threshold);
-int GenerateSignal(double price, double upperBand, double lowerBand);
-void ExecuteTrade(int signal, double lotSize);
+//--- Placeholder function for initialization
+void StrategyInit()
+  {
+   Print("StrategyInit: AdaptiveBreakoutAI placeholder initialized.");
+  }
 
-#endif
+//--- Placeholder function for execution logic
+void StrategyRun()
+  {
+   Print("StrategyRun: AdaptiveBreakoutAI placeholder running.");
+  }
+
+//--- Placeholder function for cleanup
+void StrategyDeinit()
+  {
+   Print("StrategyDeinit: AdaptiveBreakoutAI placeholder deinitialized.");
+  }
+
+#endif // __STRATEGY_MQH__
