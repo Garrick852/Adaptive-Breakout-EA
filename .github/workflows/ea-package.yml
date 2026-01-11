@@ -1,0 +1,45 @@
+name: EA Manual Packaging
+
+on:
+  workflow_dispatch:   # Only runs when you trigger it manually
+
+jobs:
+  package-ea:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare MQL5 package
+        run: |
+          $root = "dist/mt5"
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Experts" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Include" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/configs" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Files/dashboards" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/MQL5/Logs" | Out-Null
+
+          # Copy your precompiled EA and other assets
+          Copy-Item "eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5" "$root/MQL5/Experts/" -Force
+          Copy-Item "Include/*.mqh" "$root/MQL5/Include/" -Force -ErrorAction SilentlyContinue
+          Copy-Item "configs/*.json" "$root/MQL5/Files/configs/" -Force -ErrorAction SilentlyContinue
+          Copy-Item "dashboards/*.yaml" "$root/MQL5/Files/dashboards/" -Force -ErrorAction SilentlyContinue
+          'Runtime logs will be generated here.' | Out-File -Encoding utf8 "$root/MQL5/Logs/.keep"
+
+      - name: Create EA package zip
+        run: |
+          $version = (git rev-parse --short HEAD) -replace '\s',''
+          if (-not $version) { $version = (Get-Date).ToString("yyyyMMdd-HHmm") }
+          Compress-Archive -Path "MQL5/*" -DestinationPath "AdaptiveBreakoutAI-Package-$version.zip" -WorkingDirectory "dist/mt5" -Force
+          "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload EA package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdaptiveBreakoutAI-Package-${{ env.PACKAGE_VERSION }}
+          path: dist/mt5/AdaptiveBreakoutAI-Package-${{ env.PACKAGE_VERSION }}.zip
+          if-no-files-found: error
