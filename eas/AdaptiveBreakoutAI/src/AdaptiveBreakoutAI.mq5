@@ -72,7 +72,7 @@ input StrategyMode InpStrategyMode  = MODE_AUTO; // Strategy mode
 input bool         InpAIEnabled     = true;      // Enable external AI + drift router
 input string       InpAISignalFile  = "ai_signal.txt"; // File with -1,0,1 AI signal
 
-// ATR trailing stop (optional, if you use Strategy::ATRTrail elsewhere)
+// ATR trailing stop (optional)
 input bool   InpUseATRTrail         = false; // Use ATR-based trailing stop
 input double InpATRTrailMult        = 1.5;   // ATR trailing multiplier
 
@@ -81,7 +81,6 @@ input double InpATRTrailMult        = 1.5;   // ATR trailing multiplier
 //-------------------------------------------------------------------
 int OnInit()
   {
-   // Initialise drift detection module if present
    Drift::Init();
    return(INIT_SUCCEEDED);
   }
@@ -91,7 +90,6 @@ int OnInit()
 //-------------------------------------------------------------------
 void OnDeinit(const int reason)
   {
-   // Nothing special needed yet; keep placeholder if you want
    Print("AdaptiveBreakoutAI: deinit, reason=", reason);
   }
 
@@ -102,28 +100,28 @@ void OnTick()
   {
    string symbol = _Symbol;
 
-   // 1) Session filter
+   // Session filter
    if(InpUseSessionFilter && !Utils::IsWithinSession(InpSessionStartHour, InpSessionEndHour))
       return;
 
-   // 2) Prop rules & cooldown
+   // Prop rules & cooldown
    if(!PropRules::AllowTrading((int)InpOperMode, InpDailyLossStopPct, InpMaxTotalDDPct))
       return;
    if(!Utils::PassedCooldownMinutes(InpMinMinutesBetweenTrades))
       return;
 
-   // 3) Hedging disabled & max concurrency
+   // Hedging disabled & max concurrency
    if(InpHedgingDisabled && Risk::HasOpenPosition(symbol))
       return;
    if(Risk::CountSymbolPositions(symbol) >= InpMaxConcurrentTrades)
       return;
 
-   // 4) Volatility
+   // Volatility
    double atr = Volatility::ATR(symbol, PERIOD_CURRENT, InpATRPeriod);
    if(InpMinATRFilter > 0 && atr < InpMinATRFilter)
       return;
 
-   // 5) Build box (for drift & breakout), then update drift detector
+   // Build box (for drift & breakout), then update drift detector
    double boxHigh, boxLow;
    bool hasBox = (InpBoxMode == BOXMODE_DONCHIAN)
       ? Box::Donchian(symbol, InpBoxLookbackBars, boxHigh, boxLow)
@@ -132,7 +130,7 @@ void OnTick()
    if(hasBox)
       Drift::Update(atr, boxHigh, boxLow);
 
-   // 6) AI / router selection
+   // AI / router selection
    StrategyMode mode = InpStrategyMode;
    if(mode == MODE_AUTO && InpAIEnabled)
      {
@@ -142,7 +140,6 @@ void OnTick()
       mode = (fused > 0 ? MODE_BREAKOUT : (fused < 0 ? MODE_MEANREVERT : MODE_BREAKOUT));
      }
 
-   // 7) Route to strategy
    bool traded = false;
    if(mode == MODE_BREAKOUT)
      {
@@ -166,18 +163,17 @@ void OnTick()
       traded = StrategyMeanRevert::Run(
                   symbol,
                   50,    // EMA period
-                  1.5,   // z-score threshold in ATR multiples
+                  1.5,   // z-score threshold
                   atr,
                   InpATRMultSL,
                   InpATRMultTP,
                   InpRiskPercentPerTrade);
      }
 
-   // 8) Book-keeping
    if(traded)
       Utils::StampTradeTime();
 
-   // 9) Optional ATR-based trailing
-   if(InpUseATRTrail)
-      Strategy::ATRTrail(symbol, atr, InpATRTrailMult); // Only if you have this implemented
+   // Trailing – comment out if you don't implement Strategy::ATRTrail
+   // if(InpUseATRTrail)
+   //    Strategy::ATRTrail(symbol, atr, InpATRTrailMult);
   }
