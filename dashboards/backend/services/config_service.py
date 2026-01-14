@@ -1,17 +1,17 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, Type
+from typing import Any
 
+from dashboards.backend.config.settings import CONFIGS_DIR, SCHEMAS_DIR
 from jsonschema import Draft7Validator
 from pydantic import BaseModel, ValidationError
 
-from dashboards.backend.config.settings import CONFIGS_DIR, SCHEMAS_DIR
 
-def load_json(path: Path) -> Dict[str, Any]:
+def load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
-def validate_with_schema(data: Dict[str, Any], schema_file: str) -> None:
+def validate_with_schema(data: dict[str, Any], schema_file: str) -> None:
     schema_path = SCHEMAS_DIR / schema_file
     schema = load_json(schema_path)
     Draft7Validator(schema).validate(data)
@@ -19,7 +19,7 @@ def validate_with_schema(data: Dict[str, Any], schema_file: str) -> None:
 def load_and_validate(
     config_filename: str,
     schema_filename: str,
-    model: Type[BaseModel],
+    model: type[BaseModel],
 ) -> BaseModel:
     cfg_path = CONFIGS_DIR / config_filename
     data = load_json(cfg_path)

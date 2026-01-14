@@ -1,12 +1,6 @@
-from fastapi import FastAPI, HTTPException
-
-from dashboards.backend.models.ea_config import EAConfig
-from dashboards.backend.models.router_config import RouterConfig
 from dashboards.backend.models.signal import SignalRequest
-from dashboards.backend.services.config_service import load_and_validate
-from dashboards.backend.services.router_service import get_router_config
-from dashboards.backend.services.metrics_service import get_dummy_metrics
-from dashboards.backend.services.signal_service import write_signal, SignalWriteError
+from dashboards.backend.services.signal_service import SignalWriteError, write_signal
+from fastapi import FastAPI, HTTPException
 
 app = FastAPI(title="Adaptive Breakout EA Dashboard API")
 
@@ -21,9 +15,9 @@ def post_simple_signal(req: SignalRequest):
         path = write_signal(req, per_symbol=False)
         return {"status": "ok", "path": str(path), "signal": req.signal, "symbol": req.symbol}
     except SignalWriteError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @app.post("/signals/{symbol}")
 def post_symbol_signal(symbol: str, req: SignalRequest):
@@ -37,6 +31,6 @@ def post_symbol_signal(symbol: str, req: SignalRequest):
         path = write_signal(req, per_symbol=True)
         return {"status": "ok", "path": str(path), "signal": req.signal, "symbol": req.symbol}
     except SignalWriteError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -1,12 +1,12 @@
 from pathlib import Path
-from typing import List
 
 from dashboards.backend.config.settings import EA_LOG_PATH, MT5_DATA_DIR
+
 
 class LogError(RuntimeError):
     pass
 
-def tail_file(path: Path, max_lines: int = 200) -> List[str]:
+def tail_file(path: Path, max_lines: int = 200) -> list[str]:
     """
     Read last `max_lines` lines from `path` efficiently.
     If file is shorter than `max_lines`, return all lines.

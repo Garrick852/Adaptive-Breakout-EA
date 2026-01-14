@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class EAConfig(BaseModel):
     atr_period: int = Field(..., ge=1, le=1000)
     atr_mult_sl: float = Field(..., ge=0.1, le=20)

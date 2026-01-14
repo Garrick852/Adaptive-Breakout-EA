@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import Optional
 
 from dashboards.backend.config.settings import AI_SIGNAL_DIR, MT5_DATA_DIR
 from dashboards.backend.models.signal import SignalRequest
+
 
 class SignalWriteError(RuntimeError):
     pass
