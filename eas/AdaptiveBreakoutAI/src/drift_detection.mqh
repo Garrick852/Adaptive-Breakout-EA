@@ -1,33 +1,45 @@
 //+------------------------------------------------------------------+
-//| utils.mqh - Placeholder include for AdaptiveBreakoutAI EA        |
-//| Provides utility/helper functions                                |
+//| drift_detection.mqh - Simple regime/“drift” detector              |
 //+------------------------------------------------------------------+
+#ifndef __DRIFT_DETECTION_MQH__
+#define __DRIFT_DETECTION_MQH__
 
-#ifndef __UTILS_MQH__
-#define __UTILS_MQH__
-
-//--- Placeholder function for logging
-void LogMessage(string msg)
+namespace Drift
   {
-   Print("Utils::LogMessage placeholder -> ", msg);
+   // Internal simple rolling state
+   double gLastATR      = 0.0;
+   double gLastBoxRange = 0.0;
+
+   void Init()
+     {
+      gLastATR      = 0.0;
+      gLastBoxRange = 0.0;
+      Print("Drift::Init -> reset state");
+     }
+
+   void Update(double atr, double boxHigh, double boxLow)
+     {
+      gLastATR      = atr;
+      gLastBoxRange = MathAbs(boxHigh - boxLow);
+     }
+
+   // Very simple regime idea:
+   //  - if boxRange >> ATR => trending/breakout (+1)
+   //  - if boxRange << ATR => choppy/mean-revert (-1)
+   //  - else neutral 0
+   int Advise()
+     {
+      if(gLastATR <= 0.0 || gLastBoxRange <= 0.0)
+         return(0);
+
+      double ratio = gLastBoxRange / gLastATR;
+
+      if(ratio > 2.0)
+         return(+1); // breakout regime
+      if(ratio < 0.8)
+         return(-1); // mean-revert regime
+      return(0);
+     }
   }
 
-//--- Placeholder function for rounding values
-double RoundToPips(double value, int pips)
-  {
-   double factor = MathPow(10, pips);
-   double rounded = MathRound(value * factor) / factor;
-   Print("Utils::RoundToPips placeholder -> ", rounded);
-   return rounded;
-  }
-
-//--- Placeholder function for timestamp
-string CurrentTimestamp()
-  {
-   datetime now = TimeCurrent();
-   string ts = TimeToString(now, TIME_DATE|TIME_SECONDS);
-   Print("Utils::CurrentTimestamp placeholder -> ", ts);
-   return ts;
-  }
-
-#endif // __UTILS_MQH__
+#endif // __DRIFT_DETECTION_MQH__
