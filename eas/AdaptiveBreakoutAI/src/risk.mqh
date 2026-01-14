@@ -6,7 +6,6 @@
 
 namespace Risk
   {
-   // Generic lot sizing by risk% and SL distance in points
    double CalcLotsByRisk(string symbol, double slPoints, double riskPercent)
      {
       if(riskPercent <= 0.0 || slPoints <= 0.0)
