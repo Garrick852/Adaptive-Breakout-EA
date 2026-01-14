@@ -14,7 +14,7 @@ CONFIG_SCHEMA_MAP = {
     "router_demo.json":  ("router.schema.json",  "Router config"),
     "risk_presets.json": ("risk.schema.json",    "Risk presets"),
     "symbols_map.json":  ("symbols.schema.json", "Symbols map"),
-    # Uncomment when you have a schema for sessions:
+    # Uncomment when you have a schema for session windows:
     # "session_windows.json": ("session.schema.json", "Session windows"),
 }
 
@@ -47,7 +47,6 @@ def validate_config(config_name, schema_name, label):
     if errors:
         print(f"[ERROR] {label} ({config_name}) failed validation against {schema_name}:")
         for err in errors:
-            # Path like "presets -> PROP_CHALLENGE_P1 -> risk_percent"
             path = " -> ".join(str(p) for p in err.path) or "<root>"
             print(f"  - at {path}: {err.message}")
         return False
