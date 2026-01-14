@@ -1,64 +1,183 @@
 //+------------------------------------------------------------------+
-//| AdaptiveBreakoutAI.mq5 - Skeleton EA                             |
-//| Minimal structure to integrate includes and run placeholders     |
+//| AdaptiveBreakoutAI.mq5 - Adaptive breakout / mean-revert EA      |
 //+------------------------------------------------------------------+
 #property strict
 
-//--- Include placeholder modules
-#include <strategy.mqh>
-#include <risk.mqh>
-#include <utils.mqh>
-#include <drift_detection.mqh>
+//--- Includes
+#include "utils.mqh"
+#include "volatility.mqh"
+#include "risk.mqh"
+#include "trade_exec.mqh"
+#include "prop_rules.mqh"
+#include "strategy_breakout.mqh"
+#include "strategy_meanrevert.mqh"
+#include "drift_detection.mqh"
 
-//--- Input parameters (visible in EA settings)
-input double InpRiskPerTrade = 0.01;       // Risk per trade (fraction of balance)
-input double InpMaxDrawdown  = 0.20;       // Max allowed drawdown
-input double InpBreakoutThreshold = 1.5;   // Breakout threshold
-input int    InpMAPeriod     = 20;         // Moving average period
-input int    InpVolWindow    = 14;         // Volatility window
+//-------------------------------------------------------------------
+// Enums and modes
+//-------------------------------------------------------------------
+enum StrategyMode
+  {
+   MODE_BREAKOUT   = 0,
+   MODE_MEANREVERT = 1,
+   MODE_AUTO       = 2
+  };
 
-//--- Global variables
-double gBaseline = 1.0;
+enum BoxModeInput
+  {
+   BOXMODE_DONCHIAN  = 0,
+   BOXMODE_TIMERANGE = 1
+  };
 
-//+------------------------------------------------------------------+
-//| Expert initialization function                                   |
-//+------------------------------------------------------------------+
+//-------------------------------------------------------------------
+// Inputs
+//-------------------------------------------------------------------
+// Session filter
+input bool   InpUseSessionFilter    = false; // Use session filter
+input int    InpSessionStartHour    = 0;     // Session start hour (server time)
+input int    InpSessionEndHour      = 23;    // Session end hour (server time)
+
+// Prop rules / daily loss / total DD / cooldown
+input int    InpOperMode            = PropRules::MODE_NORMAL; // Operation mode (prop rules)
+input double InpDailyLossStopPct    = 5.0;   // Max daily loss (%) of balance
+input double InpMaxTotalDDPct       = 10.0;  // Max total drawdown (%) of balance
+input int    InpMinMinutesBetweenTrades = 5; // Cooldown between trades (minutes)
+
+// Hedging / concurrency
+input bool   InpHedgingDisabled     = true;  // Block trades if opposite position exists
+input int    InpMaxConcurrentTrades = 1;     // Max open trades per symbol
+
+// Volatility / ATR
+input int    InpATRPeriod           = 14;    // ATR period
+input double InpMinATRFilter        = 0.0;   // Min ATR filter (0 = disabled)
+
+// Box settings
+input BoxModeInput InpBoxMode       = BOXMODE_DONCHIAN; // Box mode
+input int    InpBoxLookbackBars     = 50;    // Donchian bars lookback
+input int    InpTimeFromHour        = 8;     // Time-range box start hour
+input int    InpTimeToHour          = 17;    // Time-range box end hour
+
+// Breakout behaviour
+input double InpBreakoutBufferPts   = 20;    // Breakout buffer (points beyond box)
+input bool   InpRequireCloseBeyond  = true;  // Require candle close beyond box
+
+// SL/TP and risk
+input double InpATRMultSL           = 2.0;   // SL in ATR multiples
+input double InpATRMultTP           = 4.0;   // TP in ATR multiples
+input double InpRiskPercentPerTrade = 1.0;   // Risk per trade (% of balance)
+input bool   InpUsePendingOrders    = false; // Use pending stop orders instead of market
+
+// Strategy mode / AI router
+input StrategyMode InpStrategyMode  = MODE_AUTO; // Strategy mode
+input bool         InpAIEnabled     = true;      // Enable external AI + drift router
+input string       InpAISignalFile  = "ai_signal.txt"; // File with -1,0,1 AI signal
+
+// ATR trailing stop (optional, if you use Strategy::ATRTrail elsewhere)
+input bool   InpUseATRTrail         = false; // Use ATR-based trailing stop
+input double InpATRTrailMult        = 1.5;   // ATR trailing multiplier
+
+//-------------------------------------------------------------------
+// Expert initialization
+//-------------------------------------------------------------------
 int OnInit()
   {
-   LogMessage("AdaptiveBreakoutAI EA initialized.");
-   StrategyInit();
+   // Initialise drift detection module if present
+   Drift::Init();
    return(INIT_SUCCEEDED);
   }
 
-//+------------------------------------------------------------------+
-//| Expert deinitialization function                                 |
-//+------------------------------------------------------------------+
+//-------------------------------------------------------------------
+// Expert deinitialization
+//-------------------------------------------------------------------
 void OnDeinit(const int reason)
   {
-   StrategyDeinit();
-   LogMessage("AdaptiveBreakoutAI EA deinitialized.");
+   // Nothing special needed yet; keep placeholder if you want
+   Print("AdaptiveBreakoutAI: deinit, reason=", reason);
   }
 
-//+------------------------------------------------------------------+
-//| Expert tick function                                             |
-//+------------------------------------------------------------------+
+//-------------------------------------------------------------------
+// Expert tick
+//-------------------------------------------------------------------
 void OnTick()
   {
-   //--- Run strategy placeholder
-   StrategyRun();
+   string symbol = _Symbol;
 
-   //--- Risk management placeholder
-   double lot = CalculateLotSize(AccountBalance(), InpRiskPerTrade);
-   bool ok = CheckDrawdown(AccountEquity() - AccountBalance(), InpMaxDrawdown);
+   // 1) Session filter
+   if(InpUseSessionFilter && !Utils::IsWithinSession(InpSessionStartHour, InpSessionEndHour))
+      return;
 
-   //--- Drift detection placeholder
-   bool drift = DetectParameterDrift(InpBreakoutThreshold, gBaseline, 0.5);
-   if(drift)
+   // 2) Prop rules & cooldown
+   if(!PropRules::AllowTrading((int)InpOperMode, InpDailyLossStopPct, InpMaxTotalDDPct))
+      return;
+   if(!Utils::PassedCooldownMinutes(InpMinMinutesBetweenTrades))
+      return;
+
+   // 3) Hedging disabled & max concurrency
+   if(InpHedgingDisabled && Risk::HasOpenPosition(symbol))
+      return;
+   if(Risk::CountSymbolPositions(symbol) >= InpMaxConcurrentTrades)
+      return;
+
+   // 4) Volatility
+   double atr = Volatility::ATR(symbol, PERIOD_CURRENT, InpATRPeriod);
+   if(InpMinATRFilter > 0 && atr < InpMinATRFilter)
+      return;
+
+   // 5) Build box (for drift & breakout), then update drift detector
+   double boxHigh, boxLow;
+   bool hasBox = (InpBoxMode == BOXMODE_DONCHIAN)
+      ? Box::Donchian(symbol, InpBoxLookbackBars, boxHigh, boxLow)
+      : Box::TimeRange(symbol, InpTimeFromHour, InpTimeToHour, boxHigh, boxLow);
+
+   if(hasBox)
+      Drift::Update(atr, boxHigh, boxLow);
+
+   // 6) AI / router selection
+   StrategyMode mode = InpStrategyMode;
+   if(mode == MODE_AUTO && InpAIEnabled)
      {
-      gBaseline = ResetBaseline(InpBreakoutThreshold);
+      int aiSig = Utils::ReadAISignal(InpAISignalFile);   // -1,0,1 from file
+      int drift = Drift::Advise();                        // -1,0,1 regime advice
+      int fused = (aiSig != 0 ? aiSig : drift);
+      mode = (fused > 0 ? MODE_BREAKOUT : (fused < 0 ? MODE_MEANREVERT : MODE_BREAKOUT));
      }
 
-   //--- Utility placeholder
-   string ts = CurrentTimestamp();
-   LogMessage("Tick processed at " + ts + " | Lot=" + DoubleToString(lot,2));
+   // 7) Route to strategy
+   bool traded = false;
+   if(mode == MODE_BREAKOUT)
+     {
+      traded = StrategyBreakout::Run(
+                  symbol,
+                  (StrategyBreakout::BoxMode)InpBoxMode,
+                  InpBoxLookbackBars,
+                  InpTimeFromHour,
+                  InpTimeToHour,
+                  InpBreakoutBufferPts,
+                  InpRequireCloseBeyond,
+                  atr,
+                  InpATRMultSL,
+                  InpATRMultTP,
+                  InpRiskPercentPerTrade,
+                  InpUsePendingOrders,
+                  InpMinATRFilter);
+     }
+   else // MODE_MEANREVERT
+     {
+      traded = StrategyMeanRevert::Run(
+                  symbol,
+                  50,    // EMA period
+                  1.5,   // z-score threshold in ATR multiples
+                  atr,
+                  InpATRMultSL,
+                  InpATRMultTP,
+                  InpRiskPercentPerTrade);
+     }
+
+   // 8) Book-keeping
+   if(traded)
+      Utils::StampTradeTime();
+
+   // 9) Optional ATR-based trailing
+   if(InpUseATRTrail)
+      Strategy::ATRTrail(symbol, atr, InpATRTrailMult); // Only if you have this implemented
   }
