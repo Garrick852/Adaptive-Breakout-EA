@@ -25,7 +25,6 @@ namespace PropRules
          return(false);
         }
 
-      // Total drawdown check
       double ddAbs = balance - equity;
       double ddPct = (ddAbs / balance) * 100.0;
       if(maxTotalDDPct > 0.0 && ddPct > maxTotalDDPct)
@@ -36,7 +35,6 @@ namespace PropRules
          return(false);
         }
 
-      // Daily loss check (very basic)
       double dailyLossPct = 0.0;
       if(profitDay < 0.0)
          dailyLossPct = MathAbs(profitDay) / balance * 100.0;
@@ -49,8 +47,7 @@ namespace PropRules
          return(false);
         }
 
-      // You may tighten rules for MODE_EVAL / MODE_FUND here if desired
-
+      // Optional: mode-specific rules based on operMode
       return(true);
      }
   }
