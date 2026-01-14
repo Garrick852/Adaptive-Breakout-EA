@@ -1,13 +1,11 @@
 //+------------------------------------------------------------------+
-//| volatility.mqh - Volatility utilities (ATR, etc.)                |
-//| For AdaptiveBreakoutAI                                           |
+//| volatility.mqh - ATR helper                                      |
 //+------------------------------------------------------------------+
 #ifndef __VOLATILITY_MQH__
 #define __VOLATILITY_MQH__
 
 namespace Volatility
   {
-   //--- Simple ATR wrapper
    double ATR(string symbol, ENUM_TIMEFRAMES tf, int period)
      {
       if(period <= 0)
@@ -19,21 +17,18 @@ namespace Volatility
       int handle = iATR(symbol, tf, period);
       if(handle == INVALID_HANDLE)
         {
-         Print("Volatility::ATR -> failed to create iATR handle for ", symbol);
+         Print("Volatility::ATR -> invalid handle");
          return(0.0);
         }
 
-      double atrArr[];
-      if(CopyBuffer(handle, 0, 0, 1, atrArr) != 1)
+      double buf[];
+      if(CopyBuffer(handle, 0, 0, 1, buf) != 1)
         {
-         Print("Volatility::ATR -> CopyBuffer failed for ", symbol);
+         Print("Volatility::ATR -> CopyBuffer failed");
          return(0.0);
         }
 
-      double atr = atrArr[0];
-      // Optional: log rarely to avoid spam
-      // Print("Volatility::ATR(", symbol, ") = ", DoubleToString(atr, _Digits));
-      return(atr);
+      return(buf[0]);
      }
   }
 
