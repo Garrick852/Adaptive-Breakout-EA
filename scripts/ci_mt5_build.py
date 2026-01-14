@@ -1,84 +1,49 @@
-#!/usr/bin/env python3
 import os
 import subprocess
 import sys
-from pathlib import Path
 
-EA_NAME = "AdaptiveBreakoutAI"
-EA_SOURCE = Path("eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5")
+# Adjust these for your environment
+METAEDITOR_EXE = r"C:\Program Files\MetaTrader 5\metaeditor64.exe"
+# Or wherever your MetaEditor is installed
 
-MT5_TERMINAL_DIR = os.environ.get("MT5_TERMINAL_DIR", "")
-METAEDITOR_EXE   = os.environ.get("METAEDITOR_EXE", "")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EA_SOURCE = os.path.join(BASE_DIR, "eas", "AdaptiveBreakoutAI", "src", "AdaptiveBreakoutAI.mq5")
 
-def fail(msg: str, code: int = 1):
-    print(f"[ERROR] {msg}", file=sys.stderr)
-    sys.exit(code)
+def build_ea():
+    if not os.path.exists(METAEDITOR_EXE):
+        print(f"[ERROR] MetaEditor not found: {METAEDITOR_EXE}")
+        return False
+    if not os.path.exists(EA_SOURCE):
+        print(f"[ERROR] EA source not found: {EA_SOURCE}")
+        return False
 
-def ensure_paths():
-    if not EA_SOURCE.is_file():
-        fail(f"EA source not found: {EA_SOURCE}")
+    # MetaEditor CLI example:
+    # metaeditor64.exe /compile:<file> /log:<logfile>
+    log_path = os.path.join(BASE_DIR, "build_mt5.log")
 
-    if not MT5_TERMINAL_DIR:
-        fail("MT5_TERMINAL_DIR env var not set")
-    if not METAEDITOR_EXE:
-        fail("METAEDITOR_EXE env var not set")
+    cmd = [
+        METAEDITOR_EXE,
+        "/compile:" + EA_SOURCE,
+        "/log:" + log_path,
+    ]
 
-    term = Path(MT5_TERMINAL_DIR)
-    if not term.is_dir():
-        fail(f"MT5_TERMINAL_DIR not found: {term}")
-
-    me = Path(METAEDITOR_EXE)
-    if not me.is_file():
-        fail(f"METAEDITOR_EXE not found: {me}")
-
-    return term, me
-
-def copy_ea_to_terminal(term_dir: Path):
-    experts_dir = term_dir / "MQL5" / "Experts" / EA_NAME
-    include_dir = term_dir / "MQL5" / "Include" / EA_NAME
-    experts_dir.mkdir(parents=True, exist_ok=True)
-    include_dir.mkdir(parents=True, exist_ok=True)
-
-    src_dir = EA_SOURCE.parent
-
-    for f in src_dir.iterdir():
-        if f.suffix.lower() == ".mq5":
-            (experts_dir / f.name).write_bytes(f.read_bytes())
-        elif f.suffix.lower() == ".mqh":
-            for d in (experts_dir, include_dir):
-                (d / f.name).write_bytes(f.read_bytes())
-
-    return experts_dir / EA_SOURCE.name
-
-def compile_ea(metaeditor: Path, ea_path: Path) -> int:
-    log_file = ea_path.with_suffix(".log")
-    cmd = [str(metaeditor), f"/compile:{ea_path}", f"/log:{log_file}"]
     print("[INFO] Running:", " ".join(cmd))
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    print(proc.stdout)
-    print(proc.stderr, file=sys.stderr)
+    result = subprocess.run(cmd)
 
-    if not log_file.exists():
-        fail(f"MetaEditor log not produced: {log_file}")
-
-    log_text = log_file.read_text(encoding="utf-8", errors="ignore")
-    print("----- MetaEditor Log -----")
-    print(log_text)
-    print("--------------------------")
-
-    lowered = log_text.lower()
-    if " error " in lowered or " errors " in lowered:
-        print("[ERROR] Compilation errors detected")
-        return 1
+    if result.returncode != 0:
+        print(f"[ERROR] MetaEditor returned non-zero exit code: {result.returncode}")
+        if os.path.exists(log_path):
+            print("[INFO] Build log:")
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                print(f.read())
+        return False
 
     print("[OK] EA compiled successfully")
-    return 0
+    return True
 
 def main():
-    term_dir, metaeditor = ensure_paths()
-    ea_dest = copy_ea_to_terminal(term_dir)
-    code = compile_ea(metaeditor, ea_dest)
-    sys.exit(code)
+    if not build_ea():
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
