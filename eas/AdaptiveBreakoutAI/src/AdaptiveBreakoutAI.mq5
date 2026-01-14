@@ -38,7 +38,7 @@ input int    InpSessionStartHour    = 0;     // Session start hour (server time)
 input int    InpSessionEndHour      = 23;    // Session end hour (server time)
 
 // Prop rules / daily loss / total DD / cooldown
-input int    InpOperMode            = PropRules::MODE_NORMAL; // Operation mode (prop rules)
+input int    InpOperMode            = PropRules::MODE_NORMAL; // Operation mode
 input double InpDailyLossStopPct    = 5.0;   // Max daily loss (%) of balance
 input double InpMaxTotalDDPct       = 10.0;  // Max total drawdown (%) of balance
 input int    InpMinMinutesBetweenTrades = 5; // Cooldown between trades (minutes)
