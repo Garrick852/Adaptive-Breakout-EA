@@ -1,0 +1,13 @@
+# Core typing / dataclasses / filesystem are built-in, so no extra deps needed
+# for the simple example_model + CSV feature reader we wrote.
+
+# If you want JSON Schema or Pydantic validation in the bridge as well, you could add:
+# jsonschema==4.23.0
+# pydantic==2.8.0
+
+# If/when you integrate a real ML model, add your framework here, e.g.:
+# torch==2.3.0
+# scikit-learn==1.5.0
+# xgboost==2.1.0
+# lightgbm==4.3.0
+# tensorflow==2.17.0
