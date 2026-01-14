@@ -1,63 +1,46 @@
-#!/usr/bin/env python3
 import os
 import shutil
+import sys
 
-# Source paths
-SRC_EA = "eas/AdaptiveBreakoutAI/src"
-SRC_CONFIGS = "configs"
-SRC_DASHBOARDS = "dashboards"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC_DIR = os.path.join(BASE_DIR, "eas", "AdaptiveBreakoutAI", "src")
+CONFIGS_DIR = os.path.join(BASE_DIR, "configs")
 
-# Target paths
-TARGET_ROOT = "dist/mt5"
-TARGET_EXPERTS = os.path.join(TARGET_ROOT, "MQL5/Experts/AdaptiveBreakoutAI")
-TARGET_INCLUDE = os.path.join(TARGET_ROOT, "MQL5/Include/AdaptiveBreakoutAI")
-TARGET_FILES = os.path.join(TARGET_ROOT, "MQL5/Files")
+# Output package dir (e.g. for deploy / zipping)
+DIST_DIR = os.path.join(BASE_DIR, "dist", "mt5_package")
+EXPERTS_SUBDIR = os.path.join(DIST_DIR, "MQL5", "Experts", "AdaptiveBreakoutAI")
+FILES_SUBDIR = os.path.join(DIST_DIR, "MQL5", "Files")
 
-# Exclusion filters
-EXCLUDE_CONFIGS = {"prop_firm.json", "demo.json"}
-EXCLUDE_DASHBOARDS = {"glyphs/expected"}  # relative subpaths to skip
-
-def ensure_dirs():
-    for d in [TARGET_EXPERTS, TARGET_INCLUDE, TARGET_FILES]:
-        os.makedirs(d, exist_ok=True)
-
-def copy_ea_files():
-    for f in os.listdir(SRC_EA):
-        if f.endswith(".mq5"):
-            shutil.copy(os.path.join(SRC_EA, f), TARGET_EXPERTS)
-        elif f.endswith(".mqh"):
-            # Copy .mqh to BOTH Experts (for relative includes) and Include folders
-            shutil.copy(os.path.join(SRC_EA, f), TARGET_EXPERTS)
-            shutil.copy(os.path.join(SRC_EA, f), TARGET_INCLUDE)
-
-def copy_configs():
-    if os.path.exists(SRC_CONFIGS):
-        for root, _, files in os.walk(SRC_CONFIGS):
-            rel_path = os.path.relpath(root, SRC_CONFIGS)
-            target_dir = os.path.join(TARGET_FILES, "configs", rel_path)
-            os.makedirs(target_dir, exist_ok=True)
-            for f in files:
-                if f in EXCLUDE_CONFIGS:
-                    continue
-                shutil.copy(os.path.join(root, f), target_dir)
-
-def copy_dashboards():
-    if os.path.exists(SRC_DASHBOARDS):
-        for root, _, files in os.walk(SRC_DASHBOARDS):
-            rel_path = os.path.relpath(root, SRC_DASHBOARDS)
-            if any(rel_path.startswith(ex) for ex in EXCLUDE_DASHBOARDS):
-                continue
-            target_dir = os.path.join(TARGET_FILES, "dashboards", rel_path)
-            os.makedirs(target_dir, exist_ok=True)
-            for f in files:
-                shutil.copy(os.path.join(root, f), target_dir)
+def clean_dir(path):
+    if os.path.exists(path):
+        shutil.rmtree(path)
+    os.makedirs(path, exist_ok=True)
 
 def main():
-    ensure_dirs()
-    copy_ea_files()
-    copy_configs()
-    copy_dashboards()
-    print("[OK] MT5 package scaffolded at:", TARGET_ROOT)
+    # Prepare directories
+    clean_dir(EXPERTS_SUBDIR)
+    os.makedirs(FILES_SUBDIR, exist_ok=True)
+
+    # Copy main EA
+    ea_src = os.path.join(SRC_DIR, "AdaptiveBreakoutAI.mq5")
+    if not os.path.exists(ea_src):
+        print(f"[ERROR] EA source not found: {ea_src}")
+        sys.exit(1)
+    shutil.copy2(ea_src, EXPERTS_SUBDIR)
+
+    # Copy all .mqh modules
+    for fname in os.listdir(SRC_DIR):
+        if fname.lower().endswith(".mqh"):
+            shutil.copy2(os.path.join(SRC_DIR, fname), EXPERTS_SUBDIR)
+
+    # Copy runtime config if present
+    runtime_cfg = os.path.join(CONFIGS_DIR, "ea_runtime.cfg")
+    if os.path.exists(runtime_cfg):
+        shutil.copy2(runtime_cfg, FILES_SUBDIR)
+    else:
+        print("[WARN] ea_runtime.cfg not found; EA will use built-in defaults")
+
+    print(f"[OK] Packaged MT5 EA into {DIST_DIR}")
 
 if __name__ == "__main__":
     main()
