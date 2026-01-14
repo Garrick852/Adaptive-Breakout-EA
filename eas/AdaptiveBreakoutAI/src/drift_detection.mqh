@@ -1,12 +1,11 @@
 //+------------------------------------------------------------------+
-//| drift_detection.mqh - Simple regime/“drift” detector              |
+//| drift_detection.mqh - Simple regime / “drift” detector           |
 //+------------------------------------------------------------------+
 #ifndef __DRIFT_DETECTION_MQH__
 #define __DRIFT_DETECTION_MQH__
 
 namespace Drift
   {
-   // Internal simple rolling state
    double gLastATR      = 0.0;
    double gLastBoxRange = 0.0;
 
@@ -23,10 +22,6 @@ namespace Drift
       gLastBoxRange = MathAbs(boxHigh - boxLow);
      }
 
-   // Very simple regime idea:
-   //  - if boxRange >> ATR => trending/breakout (+1)
-   //  - if boxRange << ATR => choppy/mean-revert (-1)
-   //  - else neutral 0
    int Advise()
      {
       if(gLastATR <= 0.0 || gLastBoxRange <= 0.0)
