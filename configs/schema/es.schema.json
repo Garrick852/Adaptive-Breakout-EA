@@ -5,32 +5,39 @@
   "properties": {
     "symbol": {
       "type": "string",
-      "description": "Trading symbol (e.g. EURUSD)"
+      "description": "Trading symbol (e.g. EURUSD, XAUUSD, DAX40). Use the MT5 symbol name exactly.",
+      "examples": ["EURUSD", "GBPUSD", "XAUUSD", "DE40", "US500"]
     },
     "timeframe": {
       "type": "string",
-      "description": "MT5 timeframe code (e.g. M15, H1, H4, D1)"
+      "description": "MT5 timeframe code for this configuration.",
+      "examples": ["M5", "M15", "M30", "H1", "H4", "D1"]
     },
 
     "session": {
       "type": "object",
-      "description": "Session filter settings",
+      "description": "Session filter settings. Use this to avoid illiquid or news-heavy hours.",
       "properties": {
         "use_session_filter": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "description": "If true, only trade between session_start_hour and session_end_hour (server time)."
         },
         "session_start_hour": {
           "type": "integer",
           "minimum": 0,
           "maximum": 23,
-          "default": 0
+          "default": 0,
+          "description": "Start hour (server time). Example: 7 to start around London open.",
+          "examples": [7, 8, 9]
         },
         "session_end_hour": {
           "type": "integer",
           "minimum": 0,
           "maximum": 23,
-          "default": 23
+          "default": 23,
+          "description": "End hour (server time). Example: 22 to avoid late illiquid hours.",
+          "examples": [17, 20, 22]
         }
       },
       "required": [],
@@ -39,27 +46,35 @@
 
     "prop_rules": {
       "type": "object",
-      "description": "Prop-firm style risk and cooldown rules",
+      "description": "Prop-firm style risk and cooldown rules. Use this to align with challenge rules.",
       "properties": {
         "oper_mode": {
           "type": "string",
           "enum": ["NORMAL", "AGGRESSIVE", "CONSERVATIVE"],
-          "default": "NORMAL"
+          "default": "NORMAL",
+          "description": "High-level behaviour preset. Map to PropRules::MODE_* in MQL.",
+          "examples": ["NORMAL", "CONSERVATIVE"]
         },
         "daily_loss_stop_pct": {
           "type": "number",
           "minimum": 0,
-          "default": 5.0
+          "default": 5.0,
+          "description": "Max daily loss as % of balance. Typical prop rules: 4–5%.",
+          "examples": [3.0, 4.0, 5.0]
         },
         "max_total_dd_pct": {
           "type": "number",
           "minimum": 0,
-          "default": 10.0
+          "default": 10.0,
+          "description": "Max peak-to-trough drawdown as % of balance. Typical: 8–10%.",
+          "examples": [8.0, 10.0, 12.0]
         },
         "min_minutes_between_trades": {
           "type": "integer",
           "minimum": 0,
-          "default": 5
+          "default": 5,
+          "description": "Cooldown between trades on a symbol. Helps avoid overtrading/noise.",
+          "examples": [5, 10, 30]
         }
       },
       "required": [],
@@ -68,16 +83,20 @@
 
     "hedging": {
       "type": "object",
-      "description": "Hedging and concurrency limits",
+      "description": "Hedging and concurrency limits. Use to comply with prop-firm rules and limit exposure.",
       "properties": {
         "hedging_disabled": {
           "type": "boolean",
-          "default": true
+          "default": true,
+          "description": "If true, block opening a position in the opposite direction on the same symbol.",
+          "examples": [true, false]
         },
         "max_concurrent_trades": {
           "type": "integer",
           "minimum": 1,
-          "default": 1
+          "default": 1,
+          "description": "Max open trades per symbol. 1 is typical for prop-style operation.",
+          "examples": [1, 2, 3]
         }
       },
       "required": [],
@@ -86,17 +105,21 @@
 
     "volatility": {
       "type": "object",
-      "description": "ATR and volatility-related settings",
+      "description": "ATR and volatility-related settings. These drive SL/TP scaling and filters.",
       "properties": {
         "atr_period": {
           "type": "integer",
           "minimum": 1,
-          "default": 14
+          "default": 14,
+          "description": "ATR lookback in bars. For intraday (M15/H1) 14–21 is common; for D1, 14 is standard.",
+          "examples": [14, 21]
         },
         "min_atr_filter": {
           "type": "number",
           "minimum": 0.0,
-          "default": 0.0
+          "default": 0.0,
+          "description": "If > 0, block trading when ATR < min_atr_filter (i.e. very low volatility regimes). Tune in price units.",
+          "examples": [0.0, 0.0005, 0.001]
         }
       },
       "required": [],
@@ -105,19 +128,21 @@
 
     "drift": {
       "type": "object",
-      "description": "Regime / drift detection rules",
+      "description": "Regime / drift detection rules based on boxRange / ATR. Controls auto-routing between breakout and mean-revert.",
       "properties": {
         "breakout_ratio": {
           "type": "number",
           "minimum": 0.0,
           "default": 2.0,
-          "description": "boxRange / ATR > this => breakout regime"
+          "description": "If boxRange / ATR > breakout_ratio, regime is considered 'breakout'. Typical range: 1.5–3.0.",
+          "examples": [1.8, 2.0, 2.5]
         },
         "mean_revert_ratio": {
           "type": "number",
           "minimum": 0.0,
           "default": 0.8,
-          "description": "boxRange / ATR < this => mean-revert regime"
+          "description": "If boxRange / ATR < mean_revert_ratio, regime is considered 'mean-revert'. Typical range: 0.5–1.0.",
+          "examples": [0.6, 0.8, 0.9]
         }
       },
       "required": [],
@@ -126,29 +151,37 @@
 
     "box": {
       "type": "object",
-      "description": "Breakout box configuration",
+      "description": "Breakout box configuration. Defines how the range for breakout/mean-revert is computed.",
       "properties": {
         "mode": {
           "type": "string",
           "enum": ["DONCHIAN", "TIMERANGE"],
-          "default": "DONCHIAN"
+          "default": "DONCHIAN",
+          "description": "DONCHIAN: use high/low over lookback_bars. TIMERANGE: use high/low between time_from_hour and time_to_hour.",
+          "examples": ["DONCHIAN", "TIMERANGE"]
         },
         "lookback_bars": {
           "type": "integer",
           "minimum": 1,
-          "default": 50
+          "default": 50,
+          "description": "Donchian lookback (bars) when mode=DONCHIAN. Typical: 20–100 depending on TF.",
+          "examples": [20, 50, 100]
         },
         "time_from_hour": {
           "type": "integer",
           "minimum": 0,
           "maximum": 23,
-          "default": 8
+          "default": 8,
+          "description": "Start hour for TIMERANGE box (server time). Use to capture pre-session range.",
+          "examples": [7, 8]
         },
         "time_to_hour": {
           "type": "integer",
           "minimum": 0,
           "maximum": 23,
-          "default": 17
+          "default": 17,
+          "description": "End hour for TIMERANGE box (server time).",
+          "examples": [11, 17]
         }
       },
       "required": [],
@@ -157,16 +190,20 @@
 
     "breakout": {
       "type": "object",
-      "description": "Breakout behaviour and entry trigger tuning",
+      "description": "Breakout behaviour and entry trigger tuning on the box.",
       "properties": {
         "buffer_points": {
           "type": "number",
           "minimum": 0.0,
-          "default": 20.0
+          "default": 20.0,
+          "description": "Extra points above/below box high/low to confirm breakout. For FX on 5-digit quotes, 10–50 points is common.",
+          "examples": [10.0, 20.0, 30.0]
         },
         "require_close_beyond": {
           "type": "boolean",
-          "default": true
+          "default": true,
+          "description": "If true, require candle close beyond box +/- buffer; if false, intrabar break may be enough.",
+          "examples": [true, false]
         }
       },
       "required": [],
@@ -175,26 +212,34 @@
 
     "risk": {
       "type": "object",
-      "description": "SL/TP and risk % sizing",
+      "description": "SL/TP and risk % sizing. These combine with ATR to define trade sizing and R-multiples.",
       "properties": {
         "atr_mult_sl": {
           "type": "number",
           "minimum": 0.0,
-          "default": 2.0
+          "default": 2.0,
+          "description": "Stop-loss distance in ATR multiples. 1.5–3.0 is typical depending on symbol/TF.",
+          "examples": [1.5, 2.0, 2.5]
         },
         "atr_mult_tp": {
           "type": "number",
           "minimum": 0.0,
-          "default": 4.0
+          "default": 4.0,
+          "description": "Take-profit distance in ATR multiples. Often 2x SL multiple (e.g. SL=2.0, TP=4.0).",
+          "examples": [3.0, 4.0, 5.0]
         },
         "risk_percent_per_trade": {
           "type": "number",
           "minimum": 0.0,
-          "default": 1.0
+          "default": 1.0,
+          "description": "Risk per trade as % of balance. For prop/challenges typically 0.25–1.0%.",
+          "examples": [0.25, 0.5, 1.0]
         },
         "use_pending_orders": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "description": "If true, use stop pending orders at breakout levels instead of market orders.",
+          "examples": [false, true]
         }
       },
       "required": [],
@@ -203,19 +248,21 @@
 
     "mean_revert": {
       "type": "object",
-      "description": "Mean-reversion strategy parameters",
+      "description": "Mean-reversion strategy parameters. Tuning depends heavily on symbol/TF.",
       "properties": {
         "ema_period": {
           "type": "integer",
           "minimum": 5,
           "default": 50,
-          "description": "EMA period for mean-reversion baseline"
+          "description": "EMA period for the mean. For intraday (M15/H1) 34–100 is common; for D1, 20–50.",
+          "examples": [34, 50, 80]
         },
         "zscore_threshold": {
           "type": "number",
           "minimum": 0.1,
           "default": 1.5,
-          "description": "Z-score threshold in ATR units for mean-reversion entries"
+          "description": "Z-score threshold in ATR units for mean-reversion entries. Lower (0.8–1.2) = more trades; higher (1.5–2.5) = fewer, stronger extremes.",
+          "examples": [1.0, 1.5, 2.0]
         }
       },
       "required": [],
@@ -224,20 +271,26 @@
 
     "router": {
       "type": "object",
-      "description": "Strategy mode / AI router configuration",
+      "description": "Strategy mode / AI router configuration. Controls when to use breakout vs mean-revert.",
       "properties": {
         "strategy_mode": {
           "type": "string",
           "enum": ["BREAKOUT", "MEANREVERT", "AUTO"],
-          "default": "AUTO"
+          "default": "AUTO",
+          "description": "BREAKOUT: always breakout. MEANREVERT: always mean-revert. AUTO: use AI+drift router to pick regime.",
+          "examples": ["AUTO", "BREAKOUT", "MEANREVERT"]
         },
         "ai_enabled": {
           "type": "boolean",
-          "default": true
+          "default": true,
+          "description": "If true, use external AI signal file (-1/0/1). If AI signal is 0 or file missing, fall back to drift.",
+          "examples": [true, false]
         },
         "ai_signal_file": {
           "type": "string",
-          "default": "ai_signal.txt"
+          "default": "ai_signal.txt",
+          "description": "Path/name of AI signal file used by the EA. Must be readable by MT5 terminal.",
+          "examples": ["ai_signal.txt", "signals/eurusd_ai_signal.txt"]
         }
       },
       "required": [],
@@ -246,16 +299,20 @@
 
     "trailing": {
       "type": "object",
-      "description": "ATR-based trailing stop settings",
+      "description": "ATR-based trailing stop settings (optional). Use once Strategy::ATRTrail is implemented.",
       "properties": {
         "use_atr_trail": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "description": "If true, enable ATR-based trailing stop management.",
+          "examples": [false, true]
         },
         "atr_trail_mult": {
           "type": "number",
           "minimum": 0.0,
-          "default": 1.5
+          "default": 1.5,
+          "description": "Trailing distance in ATR multiples. Smaller => tighter trailing, more stop-outs.",
+          "examples": [1.0, 1.5, 2.0]
         }
       },
       "required": [],
