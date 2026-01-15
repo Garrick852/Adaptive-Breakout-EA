@@ -22,17 +22,34 @@ namespace Drift
       gLastBoxRange = MathAbs(boxHigh - boxLow);
      }
 
-   int Advise()
+   // Parameterised drift adviser:
+   //  - breakoutRatio: threshold above which we consider regime "breakout"
+   //  - meanRevRatio : threshold below which we consider regime "mean-revert"
+   // Returns:
+   //  - +1 => breakout regime
+   //  - -1 => mean-revert regime
+   //  -  0 => neutral / no clear signal
+   int Advise(double breakoutRatio, double meanRevRatio)
      {
       if(gLastATR <= 0.0 || gLastBoxRange <= 0.0)
          return(0);
 
       double ratio = gLastBoxRange / gLastATR;
 
-      if(ratio > 2.0)
-         return(+1); // breakout regime
-      if(ratio < 0.8)
-         return(-1); // mean-revert regime
+      // Basic validation, fallback to sensible defaults if user misconfigures
+      if(breakoutRatio <= meanRevRatio || breakoutRatio <= 0.0 || meanRevRatio <= 0.0)
+        {
+         breakoutRatio = 2.0;
+         meanRevRatio  = 0.8;
+        }
+
+      if(ratio > breakoutRatio)
+         return(+1);  // breakout regime
+
+      if(ratio < meanRevRatio)
+         return(-1);  // mean-revert regime
+
+      // In-between zone: neutral
       return(0);
      }
   }
