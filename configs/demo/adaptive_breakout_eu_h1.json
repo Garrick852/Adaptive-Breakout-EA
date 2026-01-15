@@ -1,0 +1,67 @@
+{
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+
+  "session": {
+    "use_session_filter": true,
+    "session_start_hour": 7,
+    "session_end_hour": 22
+  },
+
+  "prop_rules": {
+    "oper_mode": "NORMAL",
+    "daily_loss_stop_pct": 4.0,
+    "max_total_dd_pct": 10.0,
+    "min_minutes_between_trades": 10
+  },
+
+  "hedging": {
+    "hedging_disabled": true,
+    "max_concurrent_trades": 1
+  },
+
+  "volatility": {
+    "atr_period": 14,
+    "min_atr_filter": 0.0
+  },
+
+  "drift": {
+    "breakout_ratio": 2.0,
+    "mean_revert_ratio": 0.8
+  },
+
+  "box": {
+    "mode": "DONCHIAN",
+    "lookback_bars": 50,
+    "time_from_hour": 8,
+    "time_to_hour": 17
+  },
+
+  "breakout": {
+    "buffer_points": 20.0,
+    "require_close_beyond": true
+  },
+
+  "risk": {
+    "atr_mult_sl": 2.0,
+    "atr_mult_tp": 4.0,
+    "risk_percent_per_trade": 1.0,
+    "use_pending_orders": false
+  },
+
+  "mean_revert": {
+    "ema_period": 50,
+    "zscore_threshold": 1.5
+  },
+
+  "router": {
+    "strategy_mode": "AUTO",
+    "ai_enabled": true,
+    "ai_signal_file": "ai_signal.txt"
+  },
+
+  "trailing": {
+    "use_atr_trail": false,
+    "atr_trail_mult": 1.5
+  }
+}
