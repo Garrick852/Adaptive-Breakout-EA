@@ -14,6 +14,11 @@ namespace StrategyMeanRevert
    using namespace TradeExec;
    using namespace Risk;
 
+   // emaPeriod      - EMA period for the mean
+   // zATR           - z-score threshold in ATR units (e.g. 1.5)
+   // atr            - current ATR (already computed by caller)
+   // atrMultSL/TP   - SL/TP in ATR multiples
+   // riskPercentPerTrade - % of balance to risk
    bool Run(string symbol,
             int emaPeriod,
             double zATR,
@@ -35,74 +40,69 @@ namespace StrategyMeanRevert
          return(false);
         }
 
-      int hMA = iMA(symbol, tf, emaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-      if(hMA == INVALID_HANDLE)
+      int shift = 1; // Use previous closed candle
+      double priceClose = iClose(symbol, tf, shift);
+      double ema        = iMA(symbol, tf, emaPeriod, 0, MODE_EMA, PRICE_CLOSE, shift);
+
+      // Deviation from EMA in ATR units
+      double diff    = priceClose - ema;
+      double zScore  = diff / (atr == 0.0 ? 1.0 : atr);
+
+      // Mean-reversion logic:
+      //  - If price is significantly above EMA (zScore > zATR) -> look for SELL
+      //  - If price is significantly below EMA (zScore < -zATR) -> look for BUY
+      int dirInt = 0;
+      if(zScore > zATR)
+         dirInt = TradeExec::DIR_SELL;
+      else if(zScore < -zATR)
+         dirInt = TradeExec::DIR_BUY;
+
+      if(dirInt == 0)
         {
-         Print("StrategyMeanRevert::Run -> invalid MA handle");
+         // No trade signal
          return(false);
         }
 
-      double buf[];
-      if(CopyBuffer(hMA, 0, 0, 1, buf) != 1)
+      Direction dir = (Direction)dirInt;
+
+      // Position sizing based on risk percent and ATR-stopped distance
+      double slDistanceATR = atrMultSL * atr;
+      if(slDistanceATR <= 0.0)
         {
-         Print("StrategyMeanRevert::Run -> CopyBuffer failed");
+         Print("StrategyMeanRevert::Run -> invalid SL distance");
          return(false);
         }
 
-      double ema = buf[0];
-      double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
-      double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
-      double price = bid;
-
-      double point     = SymbolInfoDouble(symbol, SYMBOL_POINT);
-      double devPoints = (price - ema) / point;
-      double atrPoints = atr / point;
-      if(atrPoints <= 0.0)
-         return(false);
-
-      double z = devPoints / atrPoints;
-
-      bool buySignal  = (z <= -zATR);
-      bool sellSignal = (z >=  zATR);
-      if(!buySignal && !sellSignal)
-         return(false);
-
-      double slPoints = atrMultSL * atrPoints;
-      double tpPoints = atrMultTP * atrPoints;
-      if(slPoints <= 0.0)
-         return(false);
-
-      double lots = Risk::CalcLotsByRisk(symbol, slPoints, riskPercentPerTrade);
+      double lots = Risk::CalcPositionSize(symbol, riskPercentPerTrade, slDistanceATR);
       if(lots <= 0.0)
         {
-         Print("StrategyMeanRevert::Run -> lots <= 0");
+         Print("StrategyMeanRevert::Run -> position size <= 0");
          return(false);
         }
 
-      Direction dir;
-      double entryPrice, slPrice, tpPrice;
+      // SL / TP prices
+      double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
+      double slPrice, tpPrice;
 
-      if(buySignal)
+      if(dir == DIR_BUY)
         {
-         dir        = DIR_BUY;
-         entryPrice = ask;
-         slPrice    = entryPrice - slPoints * point;
-         tpPrice    = entryPrice + tpPoints * point;
+         slPrice = priceClose - atrMultSL * atr;
+         tpPrice = priceClose + atrMultTP * atr;
         }
-      else
+      else // DIR_SELL
         {
-         dir        = DIR_SELL;
-         entryPrice = bid;
-         slPrice    = entryPrice + slPoints * point;
-         tpPrice    = entryPrice - tpPoints * point;
+         slPrice = priceClose + atrMultSL * atr;
+         tpPrice = priceClose - atrMultTP * atr;
         }
 
       bool res = TradeExec::MarketOrder(symbol, dir, slPrice, tpPrice, lots);
-      if(res)
-         Print("StrategyMeanRevert::Run -> opened ", (buySignal ? "BUY" : "SELL"),
-               " lots=", DoubleToString(lots, 2), " z=", DoubleToString(z, 2));
+      if(!res)
+        {
+         Print("StrategyMeanRevert::Run -> order failed");
+         return(false);
+        }
 
-      return(res);
+      return(true);
      }
   }
 
