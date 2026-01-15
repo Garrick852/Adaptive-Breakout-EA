@@ -94,7 +94,7 @@ int OnInit()
       InpDriftBreakoutRatio <= 0.0 ||
       InpDriftMeanRevRatio  <= 0.0)
      {
-      PrintFormat("AdaptiveBreakoutAI: invalid drift thresholds (breakout=%.3f, meanrev=%.3f) ��� resetting to defaults (2.0 / 0.8)",
+      PrintFormat("AdaptiveBreakoutAI: invalid drift thresholds (breakout=%.3f, meanrev=%.3f) – resetting to defaults (2.0 / 0.8)",
                   InpDriftBreakoutRatio, InpDriftMeanRevRatio);
       InpDriftBreakoutRatio = 2.0;
       InpDriftMeanRevRatio  = 0.8;
