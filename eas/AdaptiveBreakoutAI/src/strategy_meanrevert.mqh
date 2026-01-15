@@ -81,7 +81,6 @@ namespace StrategyMeanRevert
         }
 
       // SL / TP prices
-      double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
       double slPrice, tpPrice;
 
       if(dir == DIR_BUY)
