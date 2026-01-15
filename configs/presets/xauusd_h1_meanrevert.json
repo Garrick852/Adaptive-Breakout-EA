@@ -1,0 +1,67 @@
+{
+  "symbol": "XAUUSD",
+  "timeframe": "H1",
+
+  "session": {
+    "use_session_filter": true,
+    "session_start_hour": 7,
+    "session_end_hour": 21
+  },
+
+  "prop_rules": {
+    "oper_mode": "NORMAL",
+    "daily_loss_stop_pct": 4.0,
+    "max_total_dd_pct": 10.0,
+    "min_minutes_between_trades": 20
+  },
+
+  "hedging": {
+    "hedging_disabled": true,
+    "max_concurrent_trades": 1
+  },
+
+  "volatility": {
+    "atr_period": 14,
+    "min_atr_filter": 0.5
+  },
+
+  "drift": {
+    "breakout_ratio": 2.2,
+    "mean_revert_ratio": 0.9
+  },
+
+  "box": {
+    "mode": "DONCHIAN",
+    "lookback_bars": 60,
+    "time_from_hour": 8,
+    "time_to_hour": 17
+  },
+
+  "breakout": {
+    "buffer_points": 300.0,
+    "require_close_beyond": true
+  },
+
+  "risk": {
+    "atr_mult_sl": 2.5,
+    "atr_mult_tp": 5.0,
+    "risk_percent_per_trade": 0.4,
+    "use_pending_orders": false
+  },
+
+  "mean_revert": {
+    "ema_period": 80,
+    "zscore_threshold": 1.8
+  },
+
+  "router": {
+    "strategy_mode": "MEANREVERT",
+    "ai_enabled": false,
+    "ai_signal_file": "ai_signal_xauusd_h1.txt"
+  },
+
+  "trailing": {
+    "use_atr_trail": false,
+    "atr_trail_mult": 2.0
+  }
+}
