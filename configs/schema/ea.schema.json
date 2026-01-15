@@ -1,45 +1,257 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "EA Configuration Schema",
-  "description": "Expert Advisor configuration parameters",
-  "allOf": [
-    {
-      "$ref": "base.schema.json"
+  "title": "AdaptiveBreakoutAI Config",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string"
     },
-    {
+    "timeframe": {
+      "type": "string"
+    },
+
+    "session": {
       "type": "object",
       "properties": {
-        "parameters": {
-          "type": "object",
-          "description": "EA trading parameters",
-          "properties": {
-            "breakout_buffer": {
-              "type": "number",
-              "description": "Buffer points beyond high/low",
-              "minimum": 1.0,
-              "maximum": 100.0
-            },
-            "breakout_window": {
-              "type": "integer",
-              "description": "Lookback window for breakout detection",
-              "minimum": 10,
-              "maximum": 200
-            },
-            "volatility_window": {
-              "type": "integer",
-              "description": "Lookback window for volatility calculation",
-              "minimum": 5,
-              "maximum": 100
-            },
-            "sensitivity_threshold": {
-              "type": "number",
-              "description": "Sensitivity score threshold for entries",
-              "minimum": 0.0,
-              "maximum": 1.0
-            }
-          }
+        "use_session_filter": {
+          "type": "boolean",
+          "default": false
+        },
+        "session_start_hour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "default": 0
+        },
+        "session_end_hour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "default": 23
         }
-      }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "prop_rules": {
+      "type": "object",
+      "properties": {
+        "oper_mode": {
+          "type": "string",
+          "enum": ["NORMAL", "AGGRESSIVE", "CONSERVATIVE"],
+          "default": "NORMAL"
+        },
+        "daily_loss_stop_pct": {
+          "type": "number",
+          "minimum": 0,
+          "default": 5.0
+        },
+        "max_total_dd_pct": {
+          "type": "number",
+          "minimum": 0,
+          "default": 10.0
+        },
+        "min_minutes_between_trades": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 5
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "hedging": {
+      "type": "object",
+      "properties": {
+        "hedging_disabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "max_concurrent_trades": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "volatility": {
+      "type": "object",
+      "properties": {
+        "atr_period": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 14
+        },
+        "min_atr_filter": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 0.0
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "drift": {
+      "type": "object",
+      "properties": {
+        "breakout_ratio": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 2.0,
+          "description": "boxRange / ATR > this => breakout regime"
+        },
+        "mean_revert_ratio": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 0.8,
+          "description": "boxRange / ATR < this => mean-revert regime"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "box": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["DONCHIAN", "TIMERANGE"],
+          "default": "DONCHIAN"
+        },
+        "lookback_bars": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 50
+        },
+        "time_from_hour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "default": 8
+        },
+        "time_to_hour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "default": 17
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "breakout": {
+      "type": "object",
+      "properties": {
+        "buffer_points": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 20.0
+        },
+        "require_close_beyond": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "risk": {
+      "type": "object",
+      "properties": {
+        "atr_mult_sl": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 2.0
+        },
+        "atr_mult_tp": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 4.0
+        },
+        "risk_percent_per_trade": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 1.0
+        },
+        "use_pending_orders": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "mean_revert": {
+      "type": "object",
+      "properties": {
+        "ema_period": {
+          "type": "integer",
+          "minimum": 5,
+          "default": 50,
+          "description": "EMA period for mean-reversion baseline"
+        },
+        "zscore_threshold": {
+          "type": "number",
+          "minimum": 0.1,
+          "default": 1.5,
+          "description": "Z-score threshold in ATR units for mean-reversion entries"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "router": {
+      "type": "object",
+      "properties": {
+        "strategy_mode": {
+          "type": "string",
+          "enum": ["BREAKOUT", "MEANREVERT", "AUTO"],
+          "default": "AUTO"
+        },
+        "ai_enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "ai_signal_file": {
+          "type": "string",
+          "default": "ai_signal.txt"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+
+    "trailing": {
+      "type": "object",
+      "properties": {
+        "use_atr_trail": {
+          "type": "boolean",
+          "default": false
+        },
+        "atr_trail_mult": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 1.5
+        }
+      },
+      "required": [],
+      "additionalProperties": false
     }
-  ]
+  },
+  "required": [
+    "symbol",
+    "timeframe"
+  ],
+  "additionalProperties": false
 }
