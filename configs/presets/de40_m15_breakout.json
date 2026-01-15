@@ -1,0 +1,67 @@
+{
+  "symbol": "DE40",
+  "timeframe": "M15",
+
+  "session": {
+    "use_session_filter": true,
+    "session_start_hour": 8,
+    "session_end_hour": 18
+  },
+
+  "prop_rules": {
+    "oper_mode": "NORMAL",
+    "daily_loss_stop_pct": 3.0,
+    "max_total_dd_pct": 8.0,
+    "min_minutes_between_trades": 10
+  },
+
+  "hedging": {
+    "hedging_disabled": true,
+    "max_concurrent_trades": 1
+  },
+
+  "volatility": {
+    "atr_period": 21,
+    "min_atr_filter": 3.0
+  },
+
+  "drift": {
+    "breakout_ratio": 1.7,
+    "mean_revert_ratio": 0.7
+  },
+
+  "box": {
+    "mode": "TIMERANGE",
+    "lookback_bars": 50,
+    "time_from_hour": 8,
+    "time_to_hour": 10
+  },
+
+  "breakout": {
+    "buffer_points": 20.0,
+    "require_close_beyond": true
+  },
+
+  "risk": {
+    "atr_mult_sl": 1.8,
+    "atr_mult_tp": 3.6,
+    "risk_percent_per_trade": 0.4,
+    "use_pending_orders": true
+  },
+
+  "mean_revert": {
+    "ema_period": 50,
+    "zscore_threshold": 1.5
+  },
+
+  "router": {
+    "strategy_mode": "BREAKOUT",
+    "ai_enabled": false,
+    "ai_signal_file": "ai_signal_de40_m15.txt"
+  },
+
+  "trailing": {
+    "use_atr_trail": false,
+    "atr_trail_mult": 1.5
+  }
+}
