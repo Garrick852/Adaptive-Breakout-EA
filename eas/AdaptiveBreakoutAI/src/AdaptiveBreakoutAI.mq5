@@ -51,6 +51,10 @@ input int    InpMaxConcurrentTrades = 1;     // Max open trades per symbol
 input int    InpATRPeriod           = 14;    // ATR period
 input double InpMinATRFilter        = 0.0;   // Min ATR filter (0 = disabled)
 
+// Drift / regime detection thresholds
+input double InpDriftBreakoutRatio  = 2.0;   // boxRange / ATR > this => breakout regime
+input double InpDriftMeanRevRatio   = 0.8;   // boxRange / ATR < this => mean-revert regime
+
 // Box settings
 input BoxModeInput InpBoxMode       = BOXMODE_DONCHIAN; // Box mode
 input int    InpBoxLookbackBars     = 50;    // Donchian bars lookback
@@ -67,6 +71,10 @@ input double InpATRMultTP           = 4.0;   // TP in ATR multiples
 input double InpRiskPercentPerTrade = 1.0;   // Risk per trade (% of balance)
 input bool   InpUsePendingOrders    = false; // Use pending stop orders instead of market
 
+// Mean-reversion parameters
+input int    InpMR_EMAPeriod        = 50;    // Mean-revert EMA period
+input double InpMR_ZScoreThresh     = 1.5;   // Mean-revert z-score (ATR-based) threshold
+
 // Strategy mode / AI router
 input StrategyMode InpStrategyMode  = MODE_AUTO; // Strategy mode
 input bool         InpAIEnabled     = true;      // Enable external AI + drift router
@@ -81,6 +89,29 @@ input double InpATRTrailMult        = 1.5;   // ATR trailing multiplier
 //-------------------------------------------------------------------
 int OnInit()
   {
+   // Sanity checks for new parameters to avoid pathological configs
+   if(InpDriftBreakoutRatio <= InpDriftMeanRevRatio ||
+      InpDriftBreakoutRatio <= 0.0 ||
+      InpDriftMeanRevRatio  <= 0.0)
+     {
+      PrintFormat("AdaptiveBreakoutAI: invalid drift thresholds (breakout=%.3f, meanrev=%.3f) ��� resetting to defaults (2.0 / 0.8)",
+                  InpDriftBreakoutRatio, InpDriftMeanRevRatio);
+      InpDriftBreakoutRatio = 2.0;
+      InpDriftMeanRevRatio  = 0.8;
+     }
+
+   if(InpMR_EMAPeriod < 5)
+     {
+      PrintFormat("AdaptiveBreakoutAI: InpMR_EMAPeriod too small (%d), raising to 5", InpMR_EMAPeriod);
+      InpMR_EMAPeriod = 5;
+     }
+
+   if(InpMR_ZScoreThresh <= 0.0)
+     {
+      PrintFormat("AdaptiveBreakoutAI: InpMR_ZScoreThresh <= 0 (%.3f), raising to 0.5", InpMR_ZScoreThresh);
+      InpMR_ZScoreThresh = 0.5;
+     }
+
    Drift::Init();
    return(INIT_SUCCEEDED);
   }
@@ -118,6 +149,10 @@ void OnTick()
 
    // Volatility
    double atr = Volatility::ATR(symbol, PERIOD_CURRENT, InpATRPeriod);
+   if(atr <= 0.0)
+      return;
+
+   // Min ATR filter
    if(InpMinATRFilter > 0 && atr < InpMinATRFilter)
       return;
 
@@ -135,9 +170,20 @@ void OnTick()
    if(mode == MODE_AUTO && InpAIEnabled)
      {
       int aiSig = Utils::ReadAISignal(InpAISignalFile);   // -1,0,1 from file
-      int drift = Drift::Advise();                        // -1,0,1 regime advice
+
+      // Parameterised drift-based regime advice
+      int drift = Drift::Advise(
+                     InpDriftBreakoutRatio,
+                     InpDriftMeanRevRatio);               // -1,0,1 regime advice
+
       int fused = (aiSig != 0 ? aiSig : drift);
-      mode = (fused > 0 ? MODE_BREAKOUT : (fused < 0 ? MODE_MEANREVERT : MODE_BREAKOUT));
+
+      if(fused > 0)
+         mode = MODE_BREAKOUT;
+      else if(fused < 0)
+         mode = MODE_MEANREVERT;
+      else
+         mode = MODE_BREAKOUT; // neutral => default to breakout (existing behaviour)
      }
 
    bool traded = false;
@@ -162,8 +208,8 @@ void OnTick()
      {
       traded = StrategyMeanRevert::Run(
                   symbol,
-                  50,    // EMA period
-                  1.5,   // z-score threshold
+                  InpMR_EMAPeriod,       // EMA period from input
+                  InpMR_ZScoreThresh,    // z-score threshold from input
                   atr,
                   InpATRMultSL,
                   InpATRMultTP,
