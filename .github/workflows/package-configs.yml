@@ -1,0 +1,44 @@
+# .github/workflows/package-configs.yml
+name: Package Config Files
+
+# This workflow runs when you change files in the 'configs/' directory
+# or when you run it manually from the Actions tab.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'configs/**'
+  workflow_dispatch:
+
+jobs:
+  package-configs:
+    name: Package MQL5 Configs
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Get the code from your repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Create the folder structure that MT5 expects for files
+      # We create a temporary 'staging' directory to prepare the files for zipping.
+      - name: Create MT5 /Files/ directory structure
+        run: mkdir -p staging/MQL5/Files
+
+      # 3. Copy your entire 'configs' folder from the repo into the staging structure
+      - name: Copy 'configs' folder to staging area
+        run: cp -r configs staging/MQL5/Files/
+
+      # 4. Create the Zip file from the 'staging' directory's contents
+      - name: Create Zip Archive
+        run: |
+          cd staging
+          zip -r ../Configs.zip MQL5
+
+      # 5. Upload the Zip file as a downloadable artifact
+      # You will find 'Configs.zip' on the summary page of the workflow run.
+      - name: Upload Configs.zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Configs-Package
+          path: Configs.zip
