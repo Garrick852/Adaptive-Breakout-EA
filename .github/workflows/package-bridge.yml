@@ -1,0 +1,45 @@
+# .github/workflows/package-bridge.yml
+name: Package Bridge Files
+
+# This workflow runs when you change files in the 'bridge/' directory
+# or when you run it manually from the Actions tab.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'bridge/**'
+  workflow_dispatch:
+
+jobs:
+  package-bridge:
+    name: Package MQL5 Bridge
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Get the code from your repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Create the folder structure that MT5 expects for include files
+      # We create a temporary 'staging' directory to prepare the files for zipping.
+      - name: Create MT5 /Include/ directory structure
+        run: mkdir -p staging/MQL5/Include/bridge
+
+      # 3. Copy your 'bridge' folder contents from the repo into the staging structure
+      # The '-r' flag ensures all subdirectories and files are copied.
+      - name: Copy 'bridge' folder contents to staging area
+        run: cp -r bridge/* staging/MQL5/Include/bridge/
+
+      # 4. Create the Zip file from the 'staging' directory's contents
+      - name: Create Zip Archive
+        run: |
+          cd staging
+          zip -r ../Bridge-package.zip MQL5
+
+      # 5. Upload the Zip file as a downloadable artifact
+      # You will find 'Bridge-package.zip' on the summary page of the workflow run.
+      - name: Upload Bridge-package.zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bridge-package
+          path: Bridge-package.zip
