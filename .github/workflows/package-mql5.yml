@@ -1,0 +1,66 @@
+# .github/workflows/package-mql5.yml
+# This workflow packages the complete MQL5 application (Expert, Includes, and Configs)
+# into a single zip file for easy installation into MetaTrader 5.
+
+name: Package Complete MQL5 Application
+
+on:
+  # Run automatically on pushes to the main branch that change EA or config files
+  push:
+    branches:
+      - main
+    paths:
+      - 'eas/**'
+      - 'configs/**'
+
+  # Allow manual runs from the GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  package-application:
+    name: Create MQL5 Package
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Get the latest code from your repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Create the full MT5 folder structure in a temporary 'staging' directory
+      - name: Create MT5 directory structure
+        run: |
+          mkdir -p staging/MQL5/Experts/AdaptiveBreakoutAI
+          mkdir -p staging/MQL5/Include/AdaptiveBreakoutAI/utils
+          mkdir -p staging/MQL5/Files/configs/demo
+          mkdir -p staging/MQL5/Files/configs/schema
+          mkdir -p staging/MQL5/Files/configs/presets
+        shell: bash
+
+      # 3. Copy all your application files from the repo into the staging structure
+      - name: Copy application files to staging area
+        run: |
+          # --- Copy Expert & Include files ---
+          # This assumes all .mq5 and .mqh files are within the 'eas/' directory.
+          # Adjust the source path ('eas/AdaptiveBreakoutAI/src/') if yours is different.
+          cp -f eas/AdaptiveBreakoutAI/src/*.mq5 staging/MQL5/Experts/AdaptiveBreakoutAI/
+          cp -f eas/AdaptiveBreakoutAI/src/*.mqh staging/MQL5/Include/AdaptiveBreakoutAI/
+          cp -f eas/AdaptiveBreakoutAI/src/utils/*.mqh staging/MQL5/Include/AdaptiveBreakoutAI/utils/
+
+          # --- Copy Config files ---
+          # This assumes your config files are in a top-level 'configs/' directory.
+          cp -f configs/demo/*.yaml staging/MQL5/Files/configs/demo/
+          cp -f configs/schema/*.json staging/MQL5/Files/configs/schema/
+          cp -f configs/presets/*.set staging/MQL5/Files/configs/presets/
+        shell: bash
+
+      # 4. Create a single Zip file containing the entire MQL5 folder
+      - name: Create Zip Archive
+        run: |
+          cd staging
+          zip -r ../MQL5-package.zip MQL5
+
+      # 5. Upload the final Zip file as a downloadable artifact
+      - name: Upload Full MQL5 Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: MQL5-package
+          path: MQL5-package.zip
