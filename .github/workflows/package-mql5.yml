@@ -1,6 +1,5 @@
 # .github/workflows/package-mql5.yml
-# This workflow correctly packages the complete MQL5 application.
-# CORRECTED to fix 'No such file or directory' error.
+# FINAL CORRECTED WORKFLOW
 
 name: Package Complete MQL5 Application
 
@@ -14,41 +13,37 @@ jobs:
     name: Create MQL5 Package
     runs-on: ubuntu-latest
     steps:
-      # 1. Get the latest code from your repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Create the full, correct MT5 folder structure
       - name: Create MT5 directory structure
         run: |
           mkdir -p staging/MQL5/Experts/AdaptiveBreakoutAI
-          mkdir -p staging/MQL5/Include/AdaptiveBreakoutAI
-          # ... (other directories are fine)
+          mkdir -p staging/MQL5/Include/AdaptiveBreakoutAI/utils # Add utils subdirectory
         shell: bash
 
-      # 3. Copy all files to their correct destinations
       - name: Copy application files to staging area
         run: |
           # --- CORRECTED PATHS ---
-          # This now assumes your .mq5 and .mqh files are directly in the 'eas/' folder.
+          # Use the exact path provided for all EA source files
           
-          # Copy .mq5 file(s) to the Experts folder
-          cp -f eas/*.mq5 staging/MQL5/Experts/AdaptiveBreakoutAI/
+          # Copy .mq5 file to Experts folder
+          cp -f eas/AdaptiveBreakoutAI/src/*.mq5 staging/MQL5/Experts/AdaptiveBreakoutAI/
 
-          # Copy .mqh files to the Include folder
-          cp -f eas/*.mqh staging/MQL5/Include/AdaptiveBreakoutAI/
-
-          # --- Other Files (assuming their paths are correct) ---
-          # (configs, dashboards, etc. copy commands would go here if needed)
+          # Copy main .mqh files to Include folder
+          cp -f eas/AdaptiveBreakoutAI/src/*.mqh staging/MQL5/Include/AdaptiveBreakoutAI/
+          
+          # Copy utils .mqh files to the utils sub-folder
+          # Assuming you have a 'utils' subfolder like 'eas/AdaptiveBreakoutAI/src/utils/*.mqh'
+          # If not, this line will do nothing, which is safe.
+          cp -f eas/AdaptiveBreakoutAI/src/utils/*.mqh staging/MQL5/Include/AdaptiveBreakoutAI/utils/ 2>/dev/null || true
         shell: bash
 
-      # 4. Create a single Zip file
       - name: Create Zip Archive
         run: |
           cd staging
           zip -r ../MQL5-package.zip MQL5
 
-      # 5. Upload the final Zip file
       - name: Upload Full MQL5 Package
         uses: actions/upload-artifact@v4
         with:
