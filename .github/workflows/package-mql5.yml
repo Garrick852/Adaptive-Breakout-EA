@@ -1,8 +1,7 @@
 # .github/workflows/package-mql5.yml
-# This workflow correctly packages the complete MQL5 application, separating
-# .mq5 files into Experts/ and .mqh files into Include/.
+# FINAL SIMPLIFIED WORKFLOW - Puts all files in one folder to match your code.
 
-name: Package Complete MQL5 Application
+name: Package EA for Simple Compilation
 
 on:
   push:
@@ -10,68 +9,35 @@ on:
   workflow_dispatch:
 
 jobs:
-  package-application:
-    name: Create MQL5 Package
+  package-ea:
+    name: Create Simple EA Package
     runs-on: ubuntu-latest
     steps:
-      # 1. Get the latest code from your repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Create the full, correct MT5 folder structure
-      - name: Create MT5 directory structure
-        run: |
-          # Directory for the main .mq5 EA file
-          mkdir -p staging/MQL5/Experts/AdaptiveBreakoutAI
-
-          # Directory for all .mqh include files
-          mkdir -p staging/MQL5/Include/AdaptiveBreakoutAI/utils
-
-          # Directories for config and other files
-          mkdir -p staging/MQL5/Files/configs/demo
-          mkdir -p staging/MQL5/Files/configs/schema
-          mkdir -p staging/MQL5/Files/configs/presets
-          mkdir -p staging/MQL5/Files/dashboards
-          mkdir -p staging/MQL5/Files/logs
-          mkdir -p staging/MQL5/Scripts/AdaptiveBreakoutAI
+      # 1. Create the destination folder for the EA
+      - name: Create MT5 Experts directory
+        run: mkdir -p staging/MQL5/Experts/AdaptiveBreakoutAI
         shell: bash
 
-      # 3. Copy all files to their correct destinations in the staging area
-      - name: Copy application files to staging area
+      # 2. Copy ALL .mq5 and .mqh files into that ONE folder
+      - name: Copy all source files to staging area
         run: |
-          # --- CORRECTED PART ---
-          # Copy .mq5 file(s) to the Experts folder
-          cp -f eas/AdaptiveBreakoutAI/src/*.mq5 staging/MQL5/Experts/AdaptiveBreakoutAI/
-
-          # Copy .mqh files to the Include folder
-          cp -f eas/AdaptiveBreakoutAI/src/*.mqh staging/MQL5/Include/AdaptiveBreakoutAI/
-          cp -f eas/AdaptiveBreakoutAI/src/utils/*.mqh staging/MQL5/Include/AdaptiveBreakoutAI/utils/
-
-          # --- Other Files ---
-          # Copy Configs
-          cp -f configs/demo/*.yaml staging/MQL5/Files/configs/demo/ 2>/dev/null || true
-          cp -f configs/schema/*.json staging/MQL5/Files/configs/schema/ 2>/dev/null || true
-          cp -f configs/presets/*.set staging/MQL5/Files/configs/presets/ 2>/dev/null || true
-
-          # Copy Dashboards
-          cp -r dashboards/* staging/MQL5/Files/dashboards/ 2>/dev/null || true
-          
-          # Copy Logs
-          cp -r logs/* staging/MQL5/Files/logs/ 2>/dev/null || true
-
-          # Copy Scripts
-          cp -r scripts/* staging/MQL5/Scripts/AdaptiveBreakoutAI/ 2>/dev/null || true
+          # Use the correct source path from your repository
+          cp -f eas/AdaptiveBreakoutAI/src/*.* staging/MQL5/Experts/AdaptiveBreakoutAI/
         shell: bash
 
-      # 4. Create a single Zip file
+      # 3. Zip the result
       - name: Create Zip Archive
         run: |
           cd staging
-          zip -r ../MQL5-package.zip MQL5
+          zip -r ../EA-package.zip MQL5
+        shell: bash
 
-      # 5. Upload the final Zip file
-      - name: Upload Full MQL5 Package
+      # 4. Upload the zip file
+      - name: Upload EA Package
         uses: actions/upload-artifact@v4
         with:
-          name: MQL5-package
-          path: MQL5-package.zip
+          name: EA-package
+          path: EA-package.zip
