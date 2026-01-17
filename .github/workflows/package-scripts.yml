@@ -1,0 +1,50 @@
+# .github/workflows/package-scripts.yml
+# This workflow packages the /scripts directory into a zip file for installation
+# into the MQL5/Scripts/AdaptiveBreakoutAI/ folder.
+
+name: Package Scripts for MT5
+
+on:
+  # Run automatically on pushes that change files in the scripts folder
+  push:
+    branches:
+      - main
+    paths:
+      - 'scripts/**'
+
+  # Allow manual runs from the GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  package-scripts:
+    name: Create Scripts Package
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Get the latest code from your repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Create the target MT5 folder structure in a temporary 'staging' directory
+      - name: Create MT5 Scripts directory structure
+        run: mkdir -p staging/MQL5/Scripts/AdaptiveBreakoutAI
+        shell: bash
+
+      # 3. Copy the contents of the 'scripts' folder from your repo into the staging structure
+      #    The `scripts/*` ensures we copy the files inside 'scripts' to the target directory.
+      - name: Copy script files to staging area
+        run: cp -r scripts/* staging/MQL5/Scripts/AdaptiveBreakoutAI/
+        shell: bash
+
+      # 4. Create a Zip file from the staging directory
+      - name: Create Zip Archive
+        run: |
+          cd staging
+          zip -r ../Scripts-package.zip MQL5
+        shell: bash
+
+      # 5. Upload the final Zip file as a downloadable artifact
+      - name: Upload Scripts-package.zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scripts-package
+          path: Scripts-package.zip
