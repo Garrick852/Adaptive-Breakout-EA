@@ -1,0 +1,49 @@
+# .github/workflows/package-logs.yml
+# This workflow packages the /logs directory into a zip file
+# for easy installation into the MQL5/Files/ folder.
+
+name: Package Logs for MT5
+
+on:
+  # Run automatically on pushes that change files in the logs folder
+  push:
+    branches:
+      - main
+    paths:
+      - 'logs/**'
+
+  # Allow manual runs from the GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  package-logs:
+    name: Create Logs Package
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Get the latest code from your repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Create the target MT5 folder structure in a temporary 'staging' directory
+      - name: Create MT5 directory structure
+        run: mkdir -p staging/MQL5/Files/
+
+      # 3. Copy the entire 'logs' folder from your repo into the staging structure
+      #    This command copies the directory and all its contents recursively.
+      - name: Copy logs folder to staging area
+        run: cp -r logs staging/MQL5/Files/
+        shell: bash
+
+      # 4. Create a Zip file from the staging directory
+      - name: Create Zip Archive
+        run: |
+          cd staging
+          zip -r ../Logs-package.zip MQL5
+        shell: bash
+
+      # 5. Upload the final Zip file as a downloadable artifact
+      - name: Upload Logs-package.zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Logs-Package
+          path: Logs-package.zip
