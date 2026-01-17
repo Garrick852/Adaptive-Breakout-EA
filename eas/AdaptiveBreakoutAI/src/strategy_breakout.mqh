@@ -1,13 +1,14 @@
-// Include/AdaptiveBreakoutAI/strategy_breakout.mqh
+// CORRECTED
 #pragma once
 
-#include <Trade\Trade.mqh> // Standard library for trade execution
-#include "volatility.mqh"   // For the Box class
-#include "trade_exec.mqh"   // For TradeExec class
+#include "volatility.mqh"
+#include "trade_exec.mqh"
 
-class StrategyBreakout {
+class StrategyBreakout 
+{
 public:
-    enum BoxMode {
+    enum BoxMode 
+    {
         BOXMODE_DONCHIAN  = 0,
         BOXMODE_TIMERANGE = 1
     };
@@ -25,53 +26,46 @@ public:
         double atrMultTP,
         double riskPct,
         bool usePending,
-        double minAtrFilter
-    ) {
-        if (atr <= 0.0 || (minAtrFilter > 0 && atr < minAtrFilter)) {
+        double minAtrFilter)
+    {
+        if (atr <= 0.0 || (minAtrFilter > 0 && atr < minAtrFilter))
             return false;
-        }
 
         double boxHigh, boxLow;
         bool hasBox = (boxMode == BOXMODE_DONCHIAN)
             ? Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, 0, boxHigh, boxLow)
             : Volatility::TimeRange(symbol, PERIOD_CURRENT, timeFrom, timeTo, 0, boxHigh, boxLow);
 
-        if (!hasBox) {
+        if (!hasBox)
             return false;
-        }
 
         MqlRates rates[];
-        if (CopyRates(symbol, PERIOD_CURRENT, 0, 1, rates) <= 0) {
+        if (CopyRates(symbol, PERIOD_CURRENT, 0, 1, rates) <= 0)
             return false;
-        }
         double currentClose = rates[0].close;
-
-        // Determine trade direction
+        
         TradeExec::Direction dir = TradeExec::DIR_NONE;
         double entryPrice = 0;
 
-        if ((requireClose && currentClose > boxHigh) || (!requireClose && Ask > boxHigh)) {
+        if ((requireClose && currentClose > boxHigh + (bufferPts * _Point)) || (!requireClose && Ask > boxHigh + (bufferPts * _Point))) {
             dir = TradeExec::DIR_BUY;
-            entryPrice = boxHigh + (bufferPts * _Point);
-        } else if ((requireClose && currentClose < boxLow) || (!requireClose && Bid < boxLow)) {
+            entryPrice = Ask; // Market order price
+        } else if ((requireClose && currentClose < boxLow - (bufferPts * _Point)) || (!requireClose && Bid < boxLow - (bufferPts * _Point))) {
             dir = TradeExec::DIR_SELL;
-            entryPrice = boxLow - (bufferPts * _Point);
+            entryPrice = Bid; // Market order price
         }
 
-        if (dir == TradeExec::DIR_NONE) {
+        if (dir == TradeExec::DIR_NONE)
             return false;
-        }
-        
-        // Calculate SL and TP
+
         double sl = atr * atrMultSL;
         double tp = atr * atrMultTP;
-        
-        // Execute trade
+
         if (usePending) {
-            return TradeExec::PendingStopOrder(symbol, dir, entryPrice, sl, tp, riskPct, 0);
+            double pendingPrice = (dir == TradeExec::DIR_BUY) ? boxHigh + (bufferPts * _Point) : boxLow - (bufferPts * _Point);
+            return TradeExec::PendingStopOrder(symbol, dir, pendingPrice, sl, tp, riskPct, 0);
         } else {
             return TradeExec::MarketOrder(symbol, dir, sl, tp, riskPct);
         }
-        return true;
     }
 };
