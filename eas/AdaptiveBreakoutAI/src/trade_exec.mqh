@@ -1,41 +1,61 @@
-// eas/AdaptiveBreakoutAI/src/trade_exec.mqh
+// CORRECTED
 #ifndef TRADE_EXEC_MQH
 #define TRADE_EXEC_MQH
 
-#include <Trade\Trade.mqh> // Standard library include
+#include <Trade/Trade.mqh> // Include the standard Trade library
 
-class TradeExec
+class TradeExec 
 {
-public:
-    enum Direction { DIR_NONE = 0, DIR_BUY = 1, DIR_SELL = -1 };
+private:
+    static CTrade m_trade; // Static trade object
 
-    static bool MarketOrder(string symbol, Direction dir, double sl, double tp, double riskPct)
-    {
-        // Your market order logic
-        return true; // Placeholder
-    }
+public:
+    enum Direction {
+        DIR_NONE = 0,
+        DIR_BUY  = 1,
+        DIR_SELL = -1
+    };
     
-    // CORRECTED PendingStopOrder function
-    static bool PendingStopOrder(string symbol, Direction dir, double price, double sl, double tp, double riskPct, datetime expiration)
+    // ... MarketOrder function remains the same ...
+    static bool MarketOrder(string symbol, Direction dir, double sl_dist, double tp_dist, double risk_pct)
     {
         if (dir == DIR_NONE) return false;
         
-        CTrade trade;
-        // trade.SetExpertMagicNumber(YOUR_MAGIC_NUMBER); // Set your magic number
-        trade.SetMarginMode();
+        double price = (dir == DIR_BUY) ? SymbolInfoDouble(symbol, SYMBOL_ASK) : SymbolInfoDouble(symbol, SYMBOL_BID);
+        double sl_price = (dir == DIR_BUY) ? price - sl_dist : price + sl_dist;
+        double tp_price = (dir == DIR_BUY) ? price + tp_dist : price - tp_dist;
 
-        double volume = 0.01; // Placeholder for your volume calculation
-        double sl_price = (dir == DIR_BUY) ? price - sl : price + sl;
-        double tp_price = (dir == DIR_BUY) ? price + tp : price - tp;
-        
+        // Lot size calculation would go here
+        double lot_size = 0.01; // Placeholder
+
         if (dir == DIR_BUY) {
-            // FIX: Use the correct enum 'ORDER_TIME_GTC' for the expiration type
-            return trade.BuyStop(volume, price, symbol, sl_price, tp_price, ORDER_TIME_GTC, expiration);
+            return m_trade.Buy(lot_size, symbol, price, sl_price, tp_price, "buy");
         } else {
-            // FIX: Use the correct enum 'ORDER_TIME_GTC' for the expiration type
-            return trade.SellStop(volume, price, symbol, sl_price, tp_price, ORDER_TIME_GTC, expiration);
+            return m_trade.Sell(lot_size, symbol, price, sl_price, tp_price, "sell");
+        }
+    }
+
+    static bool PendingStopOrder(string symbol, Direction dir, double price, double sl_dist, double tp_dist, double risk_pct, datetime expiration)
+    {
+        if (dir == DIR_NONE) return false;
+        
+        double sl_price = (dir == DIR_BUY) ? price - sl_dist : price + sl_dist;
+        double tp_price = (dir == DIR_BUY) ? price + tp_dist : price - tp_dist;
+
+        // Lot size calculation
+        double lot_size = 0.01; // Placeholder
+        
+        // --- THIS IS THE FIX ---
+        // If expiration is 0, use GTC. Otherwise, use the provided time.
+        ENUM_ORDER_TYPE_TIME time_type = (expiration == 0) ? ORDER_TIME_GTC : ORDER_TIME_SPECIFIED_DAY;
+
+        if (dir == DIR_BUY) {
+            return m_trade.BuyStop(lot_size, price, symbol, sl_price, tp_price, time_type, expiration, "buy stop");
+        } else {
+            return m_trade.SellStop(lot_size, price, symbol, sl_price, tp_price, time_type, expiration, "sell stop");
         }
     }
 };
+CTrade TradeExec::m_trade; // Initialize static member
 
-#endif // TRADE_EXEC_MQH
+#endif
