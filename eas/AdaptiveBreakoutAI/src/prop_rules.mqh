@@ -1,26 +1,20 @@
-// eas/AdaptiveBreakoutAI/src/prop_rules.mqh
+// CORRECTED
 #ifndef PROP_RULES_MQH
 #define PROP_RULES_MQH
 
-class PropRules
+class PropRules 
 {
 public:
-    // This enum MUST be defined for your main EA file to compile
     enum OperationMode {
-        MODE_NORMAL = 0, // Standard trading
-        MODE_PROP   = 1  // Prop firm rules enabled
+        MODE_NORMAL = 0,
+        MODE_PROP   = 1
     };
 
-    static bool AllowTrading(int mode, double maxDailyLossPct, double maxTotalDDPct)
+    static bool AllowTrading(int mode, double dailyLossPct, double maxDDPct) 
     {
-        if (mode != MODE_PROP) {
-            return true; // Not in prop mode, so we don't apply rules
-        }
-
-        // Placeholder for your actual prop firm rule logic
-        // For example, you would calculate the day's profit/loss here.
+        // Your implementation logic here
         return true;
     }
 };
 
-#endif // PROP_RULES_MQH
+#endif
