@@ -1,32 +1,45 @@
-// CORRECTED
-#pragma once
+// eas/AdaptiveBreakoutAI/src/utils.mqh
 
-class Utils 
-{
+#ifndef UTILS_MQH
+#define UTILS_MQH
+
+class Utils {
+private:
+    static datetime m_last_trade_time;
+
 public:
-    static datetime lastTradeTime;
-
-    static bool IsWithinSession(int startHour, int endHour) { /* ... implementation ... */ return true; }
-
-    static void StampTradeTime() { lastTradeTime = TimeCurrent(); }
-    
-    static bool PassedCooldownMinutes(int minutes) {
-        if (lastTradeTime == 0) return true;
-        return (TimeCurrent() - lastTradeTime) >= (minutes * 60);
+    // --- Session Time ---
+    static bool IsWithinSession(int startHour, int endHour) {
+        MqlDateTime time;
+        TimeCurrent(time);
+        return (time.hour >= startHour && time.hour <= endHour);
     }
 
-    static int ReadAISignal(string filename) {
-        int file_handle = FileOpen(filename, FILE_READ | FILE_TXT);
-        if (file_handle == INVALID_HANDLE) return 0;
+    // --- Cooldown ---
+    static void StampTradeTime() {
+        m_last_trade_time = TimeCurrent();
+    }
 
-        string line; // DECLARE THE VARIABLE
-        if (!FileIsEnding(file_handle)) {
-            line = FileReadString(file_handle);
+    static bool PassedCooldownMinutes(int minutes) {
+        if (minutes <= 0) return true;
+        return (TimeCurrent() - m_last_trade_time >= minutes * 60);
+    }
+
+    // --- AI Signal Reading ---
+    static int ReadAISignal(string filename) {
+        int handle = FileOpen(filename, FILE_READ | FILE_TXT);
+        if (handle == INVALID_HANDLE) {
+            Print("AI Signal file not found: ", filename);
+            return 0; // Neutral signal if file not found
         }
-        FileClose(file_handle);
-        
-        return (int)StringToInteger(line);
+
+        string content = FileReadString(handle);
+        FileClose(handle);
+        return (int)StringToInteger(content);
     }
 };
-// Initialize static member
-datetime Utils::lastTradeTime = 0;
+
+// Initialize the static member variable outside the class
+datetime Utils::m_last_trade_time = 0;
+
+#endif // UTILS_MQH
