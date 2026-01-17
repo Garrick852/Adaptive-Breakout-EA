@@ -1,10 +1,12 @@
-// Include/AdaptiveBreakoutAI/drift_detection.mqh
-#pragma once
+// eas/AdaptiveBreakoutAI/src/drift_detection.mqh
+
+#ifndef DRIFT_DETECTION_MQH
+#define DRIFT_DETECTION_MQH
 
 class Drift {
 public:
     static void Init() {
-        // Initialization logic if needed
+        // Initialization logic
     }
 
     static void Update(double atr, double boxHigh, double boxLow) {
@@ -13,6 +15,8 @@ public:
 
     static int Advise(double breakoutRatio, double meanRevRatio) {
         // Advice logic
-        return 0; // Placeholder
+        return 0; // 0=neutral, 1=breakout, -1=mean-revert
     }
 };
+
+#endif // DRIFT_DETECTION_MQH
