@@ -5,7 +5,7 @@
 #include "trade_exec.mqh"
 #include "volatility.mqh"
 
-class StrategyBreakout
+class StrategyBreakout 
 {
 public:
     enum BoxMode { BOXMODE_DONCHIAN = 0, BOXMODE_TIMERANGE = 1 };
@@ -25,23 +25,21 @@ public:
         bool usePending,
         double minAtrFilter
     ) {
-        if (atr <= 0.0 || (minAtrFilter > 0 && atr < minAtrFilter)) {
-            return false;
-        }
+        if (atr <= 0.0 || (minAtrFilter > 0 && atr < minAtrFilter)) return false;
 
         double boxHigh = 0.0, boxLow = 0.0;
-        bool hasBox = (boxMode == BOXMODE_DONCHIAN)
-            ? Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, 0, boxHigh, boxLow)
-            : Volatility::TimeRange(symbol, PERIOD_CURRENT, timeFrom, timeTo, 0, boxHigh, boxLow);
-        
-        if (!hasBox) {
-            return false;
+        bool hasBox;
+
+        if (boxMode == BOXMODE_DONCHIAN) {
+            hasBox = Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, 0, boxHigh, boxLow);
+        } else {
+            hasBox = Volatility::TimeRange(symbol, PERIOD_CURRENT, timeFrom, timeTo, 0, boxHigh, boxLow);
         }
+        
+        if (!hasBox) return false;
 
         MqlRates rates[];
-        if (CopyRates(symbol, PERIOD_CURRENT, 0, 1, rates) <= 0) {
-            return false;
-        }
+        if (CopyRates(symbol, PERIOD_CURRENT, 0, 1, rates) <= 0) return false;
         
         double currentClose = rates[0].close;
         double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
@@ -59,9 +57,7 @@ public:
             entryPrice = boxLow - (bufferPts * point);
         }
 
-        if (dir == TradeExec::DIR_NONE) {
-            return false;
-        }
+        if (dir == TradeExec::DIR_NONE) return false;
 
         double sl = atr * atrMultSL;
         double tp = atr * atrMultTP;
