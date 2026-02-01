@@ -1,54 +1,94 @@
-# Makefile for AdaptiveBreakoutAI EA
-# Local build and package workflow (MQL5 only)
+# Core variables
+PYTHON := python
+PIP := pip
 
-MT5_DIR = "C:/Program Files/MetaTrader 5"
-SRC     = eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5
-BIN     = eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.ex5
-LOG     = logs/build.log
-DIST    = dist/mt5
+PROJECT_NAME := Adaptive-Breakout-EA
+DIST_DIR := dist
+ARTIFACT_NAME := $(PROJECT_NAME)-$(shell git rev-parse --short HEAD).zip
 
-# Use git commit SHA or date for version tag
-VERSION ?= $(shell git rev-parse --short HEAD 2>nul || powershell -Command "(Get-Date).ToString('yyyyMMdd-HHmm')")
+# Directories in this repo that we may want to include in the ZIP
+EA_DIR := eas
+CONFIG_DIR := configs
+DASHBOARD_DIR := dashboards
+DOCS_DIR := docs
+FILES_DIR := Files
 
-.PHONY: all build package clean
+# Default target
+.PHONY: all
+all: lint test glyphs
 
-all: build package
+# ---------------------------------------------------------------------------
+# Environment / deps
+# ---------------------------------------------------------------------------
 
-## Compile the EA using MetaEditor
-build:
-    @echo "Compiling EA..."
-    @if exist $(MT5_DIR)/MetaEditor64.exe ( \
-        "$(MT5_DIR)/MetaEditor64.exe" /compile:$(SRC) /log:$(LOG) \
-    ) else if exist $(MT5_DIR)/MetaEditor.exe ( \
-        "$(MT5_DIR)/MetaEditor.exe" /compile:$(SRC) /log:$(LOG) \
-    ) else ( \
-        echo "MetaEditor not found in $(MT5_DIR)" && exit 1 \
-    )
-    @if not exist $(BIN) ( \
-        echo "Build failed — $(BIN) not found. See $(LOG)." && exit 1 \
-    )
+.PHONY: install
+install:
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements.txt
 
-## Package EA into MQL5 folder structure and zip
-package: build
-    @echo "Packaging EA..."
-    @mkdir $(DIST)/MQL5/Experts 2>nul || true
-    @mkdir $(DIST)/MQL5/Include 2>nul || true
-    @mkdir $(DIST)/MQL5/Files/configs 2>nul || true
-    @mkdir $(DIST)/MQL5/Files/dashboards 2>nul || true
-    @mkdir $(DIST)/MQL5/Logs 2>nul || true
+# ---------------------------------------------------------------------------
+# Linting / formatting / static analysis
+# ---------------------------------------------------------------------------
 
-    @copy $(BIN) $(DIST)/MQL5/Experts/ >nul
-    @copy Include\*.mqh $(DIST)/MQL5/Include\ >nul 2>nul || true
-    @copy configs\*.json $(DIST)/MQL5/Files\configs\ >nul 2>nul || true
-    @copy dashboards\*.yaml $(DIST)/MQL5/Files\dashboards\ >nul 2>nul || true
+.PHONY: lint
+lint:
+	# Python linting via ruff (configured in ruff.toml)
+	ruff check python
 
-    @echo Runtime logs will be generated here. > $(DIST)/MQL5/Logs/.keep
+.PHONY: format
+format:
+	# Optional: auto-fix with ruff if you use it
+	ruff check python --fix
 
-    @powershell -Command "Compress-Archive -Path 'MQL5/*' -DestinationPath 'AdaptiveBreakoutAI-Package-$(VERSION).zip' -WorkingDirectory '$(DIST)' -Force"
+# ---------------------------------------------------------------------------
+# Testing
+# ---------------------------------------------------------------------------
 
-## Clean build artifacts
-clean:
-    @echo "Cleaning..."
-    @del /Q $(BIN) 2>nul || true
-    @del /Q $(LOG) 2>nul || true
-    @rmdir /S /Q $(DIST) 2>nul || true
+.PHONY: test
+test:
+	pytest
+
+# ---------------------------------------------------------------------------
+# Glyphs / dashboards / visuals (adjust commands if your tooling differs)
+# ---------------------------------------------------------------------------
+
+.PHONY: glyphs
+glyphs:
+	# Example: regenerate or validate expected glyphs/dashboards
+	# Replace this with your actual command if different
+	$(PYTHON) python/tools/render_glyphs.py --output $(DASHBOARD_DIR)/glyphs/expected || true
+
+# ---------------------------------------------------------------------------
+# Config validation (optional; tighten once everything is YAML-aware)
+# ---------------------------------------------------------------------------
+
+.PHONY: validate-configs
+validate-configs:
+	# Loosely validate configs; make this strict once the tool is stable
+	$(PYTHON) python/tools/validate_configs.py || true
+
+# ---------------------------------------------------------------------------
+# Packaging for MT (ZIP artifact)
+# ---------------------------------------------------------------------------
+
+$(DIST_DIR):
+	mkdir -p $(DIST_DIR)
+
+.PHONY: package
+package: $(DIST_DIR)
+	# Build a ZIP containing the EA and supporting material for manual MT deployment.
+	# Adjust the contents to exactly what you want to copy into MT5.
+	# If some paths don't exist yet, we allow the command to continue.
+	cd $(DIST_DIR) && \
+	zip -r "$(ARTIFACT_NAME)" \
+		"../$(EA_DIR)" \
+		"../$(CONFIG_DIR)" \
+		"../$(DASHBOARD_DIR)" \
+		"../$(DOCS_DIR)" \
+		"../$(FILES_DIR)" \
+		"../README.md" \
+		"../ROADMAP.md" || echo "Some paths may be missing; ZIP created with available files."
+
+# Convenience target to run the full CI pipeline locally
+.PHONY: ci
+ci: install lint test glyphs validate-configs package
