@@ -1,66 +1,56 @@
-# MQL5 Code Generator Script
-
-"""
-This script serves as a comprehensive MQL5 code generator for creating Expert Advisor (EA) templates, DLL wrappers, and configuration files.
-"""
-
 import os
-import json
 
-# Function to generate EA template
+def create_ea_template(name):
+    template = f"""// {name} Expert Advisor Template
+input double TakeProfit = 50;  // Take Profit in points
+input double StopLoss = 50;     // Stop Loss in points
 
-def generate_ea_template(ea_name):
-    return f"""
-      // Expert Advisor: {ea_name}
-      // This EA is generated using the MQL5 Code Generator.
-      
-      input double LotSize = 0.1;
-      input double TakeProfit = 50;
-      input double StopLoss = 50;
-      
-      void OnTick() {
-          // Main trading logic goes here.
-      }
-      
-      void OnInit() {
-          // Initialization code goes here.
-      }
-      
-      void OnDeinit(const int reason) {
-          // Cleanup code goes here.
-      }
-      """;
+void OnInit() {{
+    // Initialization code here
+}}
 
-# Function to generate DLL wrapper
+void OnTick() {{
+    // Tick processing code here
+}}
+}}"
+    return template
 
-def generate_dll_wrapper(dll_name):
-    return f"""
-      // DLL Wrapper: {dll_name}
-      
-      // Function definitions for interacting with the DLL go here.
-      """;
+def create_dll_wrapper(name):
+    dll_wrapper = f"""// {name} DLL Wrapper
+#import "{name}.dll"
+double SomeFunction(double param);
+#import
 
-# Function to generate configuration file
+void CallSomeFunction() {{
+    double result = SomeFunction(123.45);
+}}
+"""
+    return dll_wrapper
 
-def generate_config_file(config_name):
-    config_data = {
-        'LotSize': 0.1,
-        'TakeProfit': 50,
-        'StopLoss': 50
-    }
-    return json.dumps(config_data, indent=4);
+def create_config_file(name):
+    config = f"""// {name} Configuration
+TakeProfit=50
+StopLoss=50
+"""
+    return config
 
-# Main function to generate all files
+def main():
+    ea_name = "MyExpertAdvisor"
+    directory = "MQL5/Experts"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    
+    ea_template = create_ea_template(ea_name)
+    with open(os.path.join(directory, f"{ea_name}.mq5"), 'w') as ea_file:
+        ea_file.write(ea_template)
+    
+    dll_template = create_dll_wrapper("MyDLL")
+    with open(os.path.join(directory, f"MyDLLWrapper.mq5"), 'w') as dll_file:
+        dll_file.write(dll_template)
 
-def generate_files(ea_name, dll_name, config_name):
-    os.makedirs(ea_name, exist_ok=True)
-    with open(os.path.join(ea_name, f'{ea_name}.mq5'), 'w') as ea_file:
-        ea_file.write(generate_ea_template(ea_name))
-    with open(os.path.join(ea_name, f'{dll_name}_wrapper.mq5'), 'w') as dll_file:
-        dll_file.write(generate_dll_wrapper(dll_name))
-    with open(os.path.join(ea_name, f'{config_name}.json'), 'w') as config_file:
-        config_file.write(generate_config_file(config_name))
+    config_template = create_config_file(ea_name)
+    with open("config.cfg", 'w') as config_file:
+        config_file.write(config_template)
 
-if __name__ == '__main__':
-    # Example usage
-    generate_files('MyExpertAdvisor', 'MyDll', 'config');
+if __name__ == "__main__":
+    main()
