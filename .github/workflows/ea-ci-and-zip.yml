@@ -25,61 +25,14 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          # If you use dev extras, add them here
-
-      # --- Run your standard dev workflow ---
-      - name: Run lint
-        run: make lint
-
-      - name: Run tests
-        run: make test
-
-      - name: Render and validate glyphs
-        run: make glyphs
-
-      # Optional: validate configs explicitly
-      - name: Validate configs
-        run: |
-          python python/tools/validate_configs.py || true
-          # ^ flip to `|| exit 1` once validate_configs.py is fully YAML-aware
-
-      # --- Build/collect EA files and create ZIP ---
-      # If you already have a Make target that builds the deployable bundle,
-      # e.g. `make package`, you can call that instead of the manual zip block.
-      #
-      # Example using Make:
-      #
-      # - name: Build EA package
-      #   run: make package
-
-      - name: Create EA ZIP artifact
-        run: |
-          mkdir -p dist
-
-          # Adjust these paths based on where your EA source/compiled files live.
-          # Example assumes:
-          # - MQL5 EA lives under eas/AdaptiveBreakoutAI/src/
-          # - You want configs, docs, and dashboards for reference
-          # - You are packaging source (.mq5); if you commit .ex5, include that too.
-
-          zip -r dist/AdaptiveBreakoutEA-${{ github.sha }}.zip \
-            eas/AdaptiveBreakoutAI \
-            configs/demo \
-            configs/schema \
-            dashboards/glyphs/expected \
-            docs \
-            README.md \
-            ROADMAP.md \
-            Files || echo "Some optional paths may be missing; continuing"
+      # --- Run full CI pipeline and build MT5-style ZIP via Makefile ---
+      - name: Run CI and build artifact
+        run: make ci
 
       # --- Upload artifact for manual MT5 deployment ---
       - name: Upload EA ZIP artifact
         uses: actions/upload-artifact@v4
         with:
           name: adaptive-breakout-ea-${{ github.sha }}
-          path: dist/AdaptiveBreakoutEA-${{ github.sha }}.zip
+          path: dist/Adaptive-Breakout-EA-*.zip
           if-no-files-found: error
