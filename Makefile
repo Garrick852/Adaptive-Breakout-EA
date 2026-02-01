@@ -40,15 +40,13 @@ DOCS_DIR        := docs
 FILES_DIR       := Files
 PYTHON_DIR      := python
 
-# If you have a specific EA folder, set it here; otherwise we just copy all of eas/
-# Example (uncomment and adjust if you want it tighter):
-# EA_MAIN_DIR   := $(EA_SRC_ROOT)/AdaptiveBreakoutAI
-# For now, use the whole eas tree:
-EA_MAIN_DIR     := $(EA_SRC_ROOT)
+# Your actual EA directory
+# Main EA is: eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5
+EA_MAIN_DIR     := eas/AdaptiveBreakoutAI/src
 
-# If you have shared includes (.mqh) in a dedicated directory, point this there.
-# Otherwise this can just mirror EA_MAIN_DIR or a subfolder.
-EA_INCLUDE_DIR  := $(EA_MAIN_DIR)
+# Includes referenced by the EA: utils.mqh, volatility.mqh, etc.
+# They live in the same src folder, so we use the same directory.
+EA_INCLUDE_DIR  := eas/AdaptiveBreakoutAI/src
 
 # -----------------------------------------------------------------------------
 # MT5 PACKAGING LAYOUT (inside the ZIP)
@@ -60,7 +58,7 @@ EA_INCLUDE_DIR  := $(EA_MAIN_DIR)
 #       AdaptiveBreakoutEA/   <- EA .mq5/.ex5 from EA_MAIN_DIR
 #     Include/
 #       AdaptiveBreakoutEA/   <- .mqh and shared includes from EA_INCLUDE_DIR
-#   configs/                  <- YAML configs as reference
+#   configs/
 #   dashboards/
 #   docs/
 #   Files/
