@@ -83,6 +83,13 @@ void OnDeinit(const int reason)
 // --- OnTick ---
 void OnTick()
 {
+    // Portfolio risk guard runs every tick — catches drawdown breaches immediately.
+    PortfolioAgent::GlobalMonitor(InpGlobalStopOutPct);
+    if (!PortfolioAgent::AllowNewTrade(InpMaxGlobalRiskPct)) {
+        Print("DEBUG: FAIL - Portfolio equity drawdown limit reached.");
+        return;
+    }
+
     static datetime last_print_time = 0;
     if (TimeCurrent() - last_print_time < 5) return;
     last_print_time = TimeCurrent();
@@ -102,12 +109,6 @@ void OnTick()
         return;
     }
     Print("DEBUG: PASS - Prop rules check passed.");
-
-    PortfolioAgent::GlobalMonitor(InpGlobalStopOutPct);
-    if (!PortfolioAgent::AllowNewTrade(InpMaxGlobalRiskPct)) {
-        Print("DEBUG: FAIL - Portfolio equity drawdown limit reached.");
-        return;
-    }
     Print("DEBUG: PASS - Portfolio risk check passed.");
 
     if (!Utils::PassedCooldownMinutes(InpMinMinutesBetweenTrades)) {

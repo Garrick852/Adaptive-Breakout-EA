@@ -32,8 +32,9 @@ public:
         return(true);
     }
 
-    // Monitors overall account health and prints a status line.
-    // stopOutPct: if equity falls below this % of balance, prints a critical alert.
+    // Monitors overall account health and optionally prints a status line.
+    // stopOutPct: maximum allowed equity drawdown from balance in percent, e.g. 30.0 = 30% drawdown.
+    //             Values <= 0 disable the stop-out alert (and suppress the status line).
     static void GlobalMonitor(double stopOutPct)
     {
         double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
@@ -46,13 +47,16 @@ public:
 
         double ddPct = (balance - equity) / balance * 100.0;
 
-        PrintFormat("PortfolioAgent::GlobalMonitor -> Balance=%.2f  Equity=%.2f  DD=%.2f%%  Margin=%.2f  Free=%.2f",
-                    balance, equity, ddPct, margin, freeMargin);
-
-        if(stopOutPct > 0.0 && ddPct >= stopOutPct)
+        if(stopOutPct > 0.0)
         {
-            PrintFormat("PortfolioAgent::GlobalMonitor -> CRITICAL: drawdown %.2f%% reached stop-out limit %.2f%%",
-                        ddPct, stopOutPct);
+            PrintFormat("PortfolioAgent::GlobalMonitor -> Balance=%.2f  Equity=%.2f  DD=%.2f%%  Margin=%.2f  Free=%.2f",
+                        balance, equity, ddPct, margin, freeMargin);
+
+            if(ddPct >= stopOutPct)
+            {
+                PrintFormat("PortfolioAgent::GlobalMonitor -> CRITICAL: drawdown %.2f%% reached stop-out limit %.2f%%",
+                            ddPct, stopOutPct);
+            }
         }
     }
 };
