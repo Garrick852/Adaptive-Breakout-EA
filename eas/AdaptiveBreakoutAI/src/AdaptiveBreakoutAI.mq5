@@ -1,6 +1,6 @@
 #property copyright "Garrick852"
 #property link      "https://github.com/Garrick852/Adaptive-Breakout-EA"
-#property version   "1.03" // Version updated for bug fixes
+#property version   "1.04"
 #property strict
 
 // --- Includes ---
@@ -9,6 +9,7 @@
 #include "risk.mqh"
 #include "trade_exec.mqh"
 #include "prop_rules.mqh"
+#include "portfolio.mqh"
 #include "strategy_breakout.mqh"
 #include "strategy_meanrevert.mqh"
 #include "drift_detection.mqh"
@@ -57,6 +58,10 @@ input double InpAtrMultTP           = 3.0;
 input double InpDriftBreakoutRatio  = 1.3;
 input double InpDriftMeanRevRatio   = 0.9;
 
+// Portfolio Risk Guard
+input double InpMaxGlobalRiskPct    = 10.0; // Max equity drawdown % before blocking new trades
+input double InpGlobalStopOutPct    = 15.0; // Drawdown % to emit a critical portfolio alert
+
 // --- OnInit ---
 int OnInit()
 {
@@ -97,6 +102,13 @@ void OnTick()
         return;
     }
     Print("DEBUG: PASS - Prop rules check passed.");
+
+    PortfolioAgent::GlobalMonitor(InpGlobalStopOutPct);
+    if (!PortfolioAgent::AllowNewTrade(InpMaxGlobalRiskPct)) {
+        Print("DEBUG: FAIL - Portfolio equity drawdown limit reached.");
+        return;
+    }
+    Print("DEBUG: PASS - Portfolio risk check passed.");
 
     if (!Utils::PassedCooldownMinutes(InpMinMinutesBetweenTrades)) {
         PrintFormat("DEBUG: FAIL - In cooldown period.");

@@ -25,6 +25,7 @@ public:
         return (TimeCurrent() - m_last_trade_time >= minutes * 60);
     }
 
+    // --- Logging ---
     // --- Logging helper ---
     static void LogMessage(string msg) {
         Print(msg);
