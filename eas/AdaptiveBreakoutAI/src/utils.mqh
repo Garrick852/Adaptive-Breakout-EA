@@ -25,6 +25,11 @@ public:
         return (TimeCurrent() - m_last_trade_time >= minutes * 60);
     }
 
+    // --- Logging ---
+    static void LogMessage(string msg) {
+        Print(msg);
+    }
+
     // --- AI Signal Reading ---
     static int ReadAISignal(string filename) {
         int handle = FileOpen(filename, FILE_READ | FILE_TXT);

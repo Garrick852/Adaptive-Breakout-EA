@@ -1,4 +1,7 @@
-// In utils.mqh (or logging.mqh)
+// eas/AdaptiveBreakoutAI/src/logging.mqh
+#ifndef LOGGING_MQH
+#define LOGGING_MQH
+
 namespace Logger
   {
    int logHandle = INVALID_HANDLE;
@@ -43,3 +46,5 @@ namespace Logger
       FileFlush(logHandle);
      }
   }
+
+#endif // LOGGING_MQH

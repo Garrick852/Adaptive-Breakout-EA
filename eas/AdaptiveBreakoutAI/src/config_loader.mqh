@@ -7,19 +7,18 @@
 
 #include "utils.mqh"
 
-// Forward declare BoxModeInput from the EA
-enum BoxModeInput
-  {
-   BOXMODE_DONCHIAN  = 0,
-   BOXMODE_TIMERANGE = 1
-  };
+// NOTE: BoxModeInput enum is declared in AdaptiveBreakoutAI.mq5.
+// This file uses int for box-mode parameters to avoid duplicate declarations.
 
 namespace ConfigLoader
   {
    // Simple helpers to parse basic types ----------------------------
    bool ParseBool(const string s, bool &out)
      {
-      string t = StringTrim(StringToLower(s));
+      string t = s;
+      StringToLower(t);
+      StringTrimLeft(t);
+      StringTrimRight(t);
       if(t == "true" || t == "1")
         {
          out = true;
@@ -35,7 +34,9 @@ namespace ConfigLoader
 
    bool ParseDouble(const string s, double &out)
      {
-      string t = StringTrim(s);
+      string t = s;
+      StringTrimLeft(t);
+      StringTrimRight(t);
       out = StringToDouble(t);
       // StringToDouble always returns a number; you can add extra checks if needed
       return(true);
@@ -43,25 +44,23 @@ namespace ConfigLoader
 
    bool ParseInt(const string s, int &out)
      {
-      string t = StringTrim(s);
+      string t = s;
+      StringTrimLeft(t);
+      StringTrimRight(t);
       out = (int)StringToInteger(t);
       return(true);
      }
 
-   bool ParseBoxMode(const string s, BoxModeInput &out)
+   // Returns 0 for DONCHIAN, 1 for TIMERANGE, -1 on failure
+   int ParseBoxMode(const string s)
      {
-      string t = StringTrim(StringToUpper(s));
-      if(t == "DONCHIAN")
-        {
-         out = BOXMODE_DONCHIAN;
-         return(true);
-        }
-      if(t == "TIMERANGE")
-        {
-         out = BOXMODE_TIMERANGE;
-         return(true);
-        }
-      return(false);
+      string t = s;
+      StringToUpper(t);
+      StringTrimLeft(t);
+      StringTrimRight(t);
+      if(t == "DONCHIAN")  return(0);
+      if(t == "TIMERANGE") return(1);
+      return(-1);
      }
 
    // Applies a single key/value to EA parameters --------------------
@@ -72,7 +71,7 @@ namespace ConfigLoader
                 double &atr_mult_sl,
                 double &atr_mult_tp,
                 double &min_atr_filter,
-                BoxModeInput &box_mode,
+                int    &box_mode,
                 int    &box_lookback_bars,
                 int    &time_from_hour,
                 int    &time_to_hour,
@@ -102,8 +101,8 @@ namespace ConfigLoader
         }
       else if(key == "box_mode")
         {
-         BoxModeInput tmp;
-         if(ParseBoxMode(value, tmp))
+         int tmp = ParseBoxMode(value);
+         if(tmp >= 0)
             box_mode = tmp;
         }
       else if(key == "box_lookback_bars")
@@ -150,8 +149,7 @@ namespace ConfigLoader
         }
       else
         {
-         // Unknown key -> ignore or optionally log
-         // Utils::LogMessage("ConfigLoader: unknown key '" + key + "'");
+         // Unknown key -> ignore silently
         }
      }
 
@@ -162,7 +160,7 @@ namespace ConfigLoader
                      double &atr_mult_sl,
                      double &atr_mult_tp,
                      double &min_atr_filter,
-                     BoxModeInput &box_mode,
+                     int    &box_mode,
                      int    &box_lookback_bars,
                      int    &time_from_hour,
                      int    &time_to_hour,
@@ -183,7 +181,8 @@ namespace ConfigLoader
       while(!FileIsEnding(handle))
         {
          string line = FileReadString(handle);
-         line = StringTrim(line);
+         StringTrimLeft(line);
+         StringTrimRight(line);
 
          if(line == "" || StringSubstr(line, 0, 1) == "#")
             continue;
@@ -192,8 +191,12 @@ namespace ConfigLoader
          if(eqPos <= 0)
             continue;
 
-         string key   = StringTrim(StringSubstr(line, 0, eqPos));
-         string value = StringTrim(StringSubstr(line, eqPos + 1));
+         string key   = StringSubstr(line, 0, eqPos);
+         string value = StringSubstr(line, eqPos + 1);
+         StringTrimLeft(key);
+         StringTrimRight(key);
+         StringTrimLeft(value);
+         StringTrimRight(value);
 
          ApplyKV(key, value,
                  atr_period,
@@ -219,3 +222,4 @@ namespace ConfigLoader
   }
 
 #endif // __CONFIG_LOADER_MQH__
+
