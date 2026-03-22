@@ -8,7 +8,7 @@
 class StrategyBreakout 
 {
 public:
-    enum BoxMode { BOXMODE_DONCHIAN = 0, BOXMODE_TIMERANGE = 1 };
+    enum BoxMode { BOX_DONCHIAN = 0, BOX_TIMERANGE = 1 };
 
     static bool Run(
         string symbol,
@@ -31,7 +31,7 @@ public:
         bool hasBox;
 
         // These function calls will now be recognized by the compiler
-        if (boxMode == BOXMODE_DONCHIAN) {
+        if (boxMode == BOX_DONCHIAN) {
             hasBox = Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, 0, boxHigh, boxLow);
         } else {
             hasBox = Volatility::TimeRange(symbol, PERIOD_CURRENT, timeFrom, timeTo, 0, boxHigh, boxLow);
