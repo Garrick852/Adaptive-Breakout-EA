@@ -26,6 +26,7 @@ public:
     }
 
     // --- Logging ---
+    // --- Logging helper ---
     static void LogMessage(string msg) {
         Print(msg);
     }

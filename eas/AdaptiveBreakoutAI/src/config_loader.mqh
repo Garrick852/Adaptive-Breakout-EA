@@ -12,19 +12,31 @@
 
 namespace ConfigLoader
   {
+   // Internal trim helper: MQL5 lacks StringTrim(), so we use StringTrimLeft/Right
+   // which modify strings in-place (unlike C-style return-value functions)
+   string Trim(string s)
+     {
+      StringTrimLeft(s);
+      StringTrimRight(s);
+      return(s);
+     }
+
    // Simple helpers to parse basic types ----------------------------
-   bool ParseBool(const string s, bool &out)
+   bool ParseBool(string s, bool &out)
      {
       string t = s;
       StringToLower(t);
       StringTrimLeft(t);
       StringTrimRight(t);
       if(t == "true" || t == "1")
+      s = Trim(s);
+      StringToLower(s);
+      if(s == "true" || s == "1")
         {
          out = true;
          return(true);
         }
-      if(t == "false" || t == "0")
+      if(s == "false" || s == "0")
         {
          out = false;
          return(true);
@@ -32,17 +44,19 @@ namespace ConfigLoader
       return(false);
      }
 
-   bool ParseDouble(const string s, double &out)
+   bool ParseDouble(string s, double &out)
      {
       string t = s;
       StringTrimLeft(t);
       StringTrimRight(t);
       out = StringToDouble(t);
+      s = Trim(s);
+      out = StringToDouble(s);
       // StringToDouble always returns a number; you can add extra checks if needed
       return(true);
      }
 
-   bool ParseInt(const string s, int &out)
+   bool ParseInt(string s, int &out)
      {
       string t = s;
       StringTrimLeft(t);
@@ -61,11 +75,31 @@ namespace ConfigLoader
       if(t == "DONCHIAN")  return(0);
       if(t == "TIMERANGE") return(1);
       return(-1);
+      s = Trim(s);
+      out = (int)StringToInteger(s);
+      return(true);
+     }
+
+   bool ParseBoxMode(string s, int &out)
+     {
+      s = Trim(s);
+      StringToUpper(s);
+      if(s == "DONCHIAN")
+        {
+         out = 0; // BOXMODE_DONCHIAN (matches BoxModeInput enum in AdaptiveBreakoutAI.mq5)
+         return(true);
+        }
+      if(s == "TIMERANGE")
+        {
+         out = 1; // BOXMODE_TIMERANGE (matches BoxModeInput enum in AdaptiveBreakoutAI.mq5)
+         return(true);
+        }
+      return(false);
      }
 
    // Applies a single key/value to EA parameters --------------------
-   void ApplyKV(const string key,
-                const string value,
+   void ApplyKV(string key,
+                string value,
                 // references to EA inputs
                 int    &atr_period,
                 double &atr_mult_sl,
@@ -103,6 +137,8 @@ namespace ConfigLoader
         {
          int tmp = ParseBoxMode(value);
          if(tmp >= 0)
+         int tmp;
+         if(ParseBoxMode(value, tmp))
             box_mode = tmp;
         }
       else if(key == "box_lookback_bars")
@@ -183,6 +219,7 @@ namespace ConfigLoader
          string line = FileReadString(handle);
          StringTrimLeft(line);
          StringTrimRight(line);
+         line = Trim(line);
 
          if(line == "" || StringSubstr(line, 0, 1) == "#")
             continue;
@@ -197,6 +234,8 @@ namespace ConfigLoader
          StringTrimRight(key);
          StringTrimLeft(value);
          StringTrimRight(value);
+         string key   = Trim(StringSubstr(line, 0, eqPos));
+         string value = Trim(StringSubstr(line, eqPos + 1));
 
          ApplyKV(key, value,
                  atr_period,
