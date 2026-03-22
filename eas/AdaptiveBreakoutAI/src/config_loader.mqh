@@ -7,25 +7,28 @@
 
 #include "utils.mqh"
 
-// Forward declare BoxModeInput from the EA
-enum BoxModeInput
-  {
-   BOXMODE_DONCHIAN  = 0,
-   BOXMODE_TIMERANGE = 1
-  };
-
 namespace ConfigLoader
   {
-   // Simple helpers to parse basic types ----------------------------
-   bool ParseBool(const string s, bool &out)
+   // Internal trim helper: MQL5 lacks StringTrim(), so we use StringTrimLeft/Right
+   // which modify strings in-place (unlike C-style return-value functions)
+   string Trim(string s)
      {
-      string t = StringTrim(StringToLower(s));
-      if(t == "true" || t == "1")
+      StringTrimLeft(s);
+      StringTrimRight(s);
+      return(s);
+     }
+
+   // Simple helpers to parse basic types ----------------------------
+   bool ParseBool(string s, bool &out)
+     {
+      s = Trim(s);
+      StringToLower(s);
+      if(s == "true" || s == "1")
         {
          out = true;
          return(true);
         }
-      if(t == "false" || t == "0")
+      if(s == "false" || s == "0")
         {
          out = false;
          return(true);
@@ -33,46 +36,47 @@ namespace ConfigLoader
       return(false);
      }
 
-   bool ParseDouble(const string s, double &out)
+   bool ParseDouble(string s, double &out)
      {
-      string t = StringTrim(s);
-      out = StringToDouble(t);
+      s = Trim(s);
+      out = StringToDouble(s);
       // StringToDouble always returns a number; you can add extra checks if needed
       return(true);
      }
 
-   bool ParseInt(const string s, int &out)
+   bool ParseInt(string s, int &out)
      {
-      string t = StringTrim(s);
-      out = (int)StringToInteger(t);
+      s = Trim(s);
+      out = (int)StringToInteger(s);
       return(true);
      }
 
-   bool ParseBoxMode(const string s, BoxModeInput &out)
+   bool ParseBoxMode(string s, int &out)
      {
-      string t = StringTrim(StringToUpper(s));
-      if(t == "DONCHIAN")
+      s = Trim(s);
+      StringToUpper(s);
+      if(s == "DONCHIAN")
         {
-         out = BOXMODE_DONCHIAN;
+         out = 0; // BOXMODE_DONCHIAN (matches BoxModeInput enum in AdaptiveBreakoutAI.mq5)
          return(true);
         }
-      if(t == "TIMERANGE")
+      if(s == "TIMERANGE")
         {
-         out = BOXMODE_TIMERANGE;
+         out = 1; // BOXMODE_TIMERANGE (matches BoxModeInput enum in AdaptiveBreakoutAI.mq5)
          return(true);
         }
       return(false);
      }
 
    // Applies a single key/value to EA parameters --------------------
-   void ApplyKV(const string key,
-                const string value,
+   void ApplyKV(string key,
+                string value,
                 // references to EA inputs
                 int    &atr_period,
                 double &atr_mult_sl,
                 double &atr_mult_tp,
                 double &min_atr_filter,
-                BoxModeInput &box_mode,
+                int    &box_mode,
                 int    &box_lookback_bars,
                 int    &time_from_hour,
                 int    &time_to_hour,
@@ -102,7 +106,7 @@ namespace ConfigLoader
         }
       else if(key == "box_mode")
         {
-         BoxModeInput tmp;
+         int tmp;
          if(ParseBoxMode(value, tmp))
             box_mode = tmp;
         }
@@ -162,7 +166,7 @@ namespace ConfigLoader
                      double &atr_mult_sl,
                      double &atr_mult_tp,
                      double &min_atr_filter,
-                     BoxModeInput &box_mode,
+                     int    &box_mode,
                      int    &box_lookback_bars,
                      int    &time_from_hour,
                      int    &time_to_hour,
@@ -183,7 +187,7 @@ namespace ConfigLoader
       while(!FileIsEnding(handle))
         {
          string line = FileReadString(handle);
-         line = StringTrim(line);
+         line = Trim(line);
 
          if(line == "" || StringSubstr(line, 0, 1) == "#")
             continue;
@@ -192,8 +196,8 @@ namespace ConfigLoader
          if(eqPos <= 0)
             continue;
 
-         string key   = StringTrim(StringSubstr(line, 0, eqPos));
-         string value = StringTrim(StringSubstr(line, eqPos + 1));
+         string key   = Trim(StringSubstr(line, 0, eqPos));
+         string value = Trim(StringSubstr(line, eqPos + 1));
 
          ApplyKV(key, value,
                  atr_period,

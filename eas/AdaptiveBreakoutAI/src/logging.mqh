@@ -1,4 +1,7 @@
-// In utils.mqh (or logging.mqh)
+#ifndef __LOGGING_MQH__
+#define __LOGGING_MQH__
+
+// logging.mqh
 namespace Logger
   {
    int logHandle = INVALID_HANDLE;
@@ -43,3 +46,5 @@ namespace Logger
       FileFlush(logHandle);
      }
   }
+
+#endif // __LOGGING_MQH__
