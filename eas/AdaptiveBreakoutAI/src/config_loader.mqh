@@ -24,11 +24,6 @@ namespace ConfigLoader
    // Simple helpers to parse basic types ----------------------------
    bool ParseBool(string s, bool &out)
      {
-      string t = s;
-      StringToLower(t);
-      StringTrimLeft(t);
-      StringTrimRight(t);
-      if(t == "true" || t == "1")
       s = Trim(s);
       StringToLower(s);
       if(s == "true" || s == "1")
@@ -46,35 +41,13 @@ namespace ConfigLoader
 
    bool ParseDouble(string s, double &out)
      {
-      string t = s;
-      StringTrimLeft(t);
-      StringTrimRight(t);
-      out = StringToDouble(t);
       s = Trim(s);
       out = StringToDouble(s);
-      // StringToDouble always returns a number; you can add extra checks if needed
       return(true);
      }
 
    bool ParseInt(string s, int &out)
      {
-      string t = s;
-      StringTrimLeft(t);
-      StringTrimRight(t);
-      out = (int)StringToInteger(t);
-      return(true);
-     }
-
-   // Returns 0 for DONCHIAN, 1 for TIMERANGE, -1 on failure
-   int ParseBoxMode(const string s)
-     {
-      string t = s;
-      StringToUpper(t);
-      StringTrimLeft(t);
-      StringTrimRight(t);
-      if(t == "DONCHIAN")  return(0);
-      if(t == "TIMERANGE") return(1);
-      return(-1);
       s = Trim(s);
       out = (int)StringToInteger(s);
       return(true);
@@ -135,8 +108,6 @@ namespace ConfigLoader
         }
       else if(key == "box_mode")
         {
-         int tmp = ParseBoxMode(value);
-         if(tmp >= 0)
          int tmp;
          if(ParseBoxMode(value, tmp))
             box_mode = tmp;
@@ -217,8 +188,6 @@ namespace ConfigLoader
       while(!FileIsEnding(handle))
         {
          string line = FileReadString(handle);
-         StringTrimLeft(line);
-         StringTrimRight(line);
          line = Trim(line);
 
          if(line == "" || StringSubstr(line, 0, 1) == "#")
@@ -228,12 +197,6 @@ namespace ConfigLoader
          if(eqPos <= 0)
             continue;
 
-         string key   = StringSubstr(line, 0, eqPos);
-         string value = StringSubstr(line, eqPos + 1);
-         StringTrimLeft(key);
-         StringTrimRight(key);
-         StringTrimLeft(value);
-         StringTrimRight(value);
          string key   = Trim(StringSubstr(line, 0, eqPos));
          string value = Trim(StringSubstr(line, eqPos + 1));
 
