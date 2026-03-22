@@ -2,7 +2,6 @@
 #ifndef __LOGGING_MQH__
 #define __LOGGING_MQH__
 
-// logging.mqh
 namespace Logger
   {
    int logHandle = INVALID_HANDLE;
