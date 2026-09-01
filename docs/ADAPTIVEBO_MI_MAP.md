@@ -17,7 +17,8 @@ exist in this repo.
 | AOS-side packet decoder (MI-001 dual-end check) | `bridge/contracts/sbridge_packet.py` | **DONE — MI-001 (PR #213)** |
 | AOS-side observation reader (MI-002) | `bridge/io/observation_reader.py` | **DONE — MI-002 (PR #214)** |
 | AOS command channel (MI-003) | `eas/AdaptiveBreakoutAI/src/aos_command.mqh` + `bridge/io/command_writer.py`, `bridge/io/status_reader.py` | **DONE — MI-003 (PR #215)** |
-| Escalation controller (MI-004) | `eas/AdaptiveBreakoutAI/src/escalation.mqh` + `bridge/contracts/aos_priority.py` | **DONE — MI-004** |
+| Escalation controller (MI-004) | `eas/AdaptiveBreakoutAI/src/escalation.mqh` + `bridge/contracts/aos_priority.py` | **DONE — MI-004 (PR #216)** |
+| WFO OnTester evaluator (MI-005) | `AdaptiveBreakoutAI.mq5` `OnTester()` + `bridge/contracts/wfo_fitness.py` + `configs/tester/wfo_slice.ini` | **DONE — MI-005** |
 | `ea_runtime.cfg` (terminal sandbox) | `Files/ea_runtime.cfg` → deployed to `MQL5/Files/` | Existing |
 
 > Note: `docs/ARCHITECTURE.md` predates the `bridge/` package and does not list
@@ -84,7 +85,8 @@ Total: **104 bytes** (2+1+1+1+1+2+4+4+20+4+4+56+2+2).
   policy defined in governance config; the 4.5 % cap is **locked in governance
   config**, not scattered hard-codes. — **IMPLEMENTED in MI-004 (see §8).**
 - **MI-005** — fitness `(PF * RF) / max(MaxDD, epsilon)` with a **min-trades
-  gate** (trades < N ⇒淘汰) to avoid overfit pseudo-optima.
+  gate** (trades < N ⇒淘汰) to avoid overfit pseudo-optima. — **IMPLEMENTED in
+  MI-005 (see §9).**
 
 ## 6. MI-002 spec — 6-feature observation tap (DONE)
 
@@ -161,6 +163,24 @@ Total: **104 bytes** (2+1+1+1+1+2+4+4+20+4+4+56+2+2).
   `hard_cap_decision(dd)`; the cap injects one more source into `resolve()`
   so the 4.5 % integration is one function call. Tests:
   `python/tests/test_aos_priority.py`.
+
+## 9. MI-005 spec — headless WFO OnTester evaluator (DONE)
+
+- **Fitness:** `(ProfitFactor × RecoveryFactor) / max(MaxDD, 0.001)`.
+- **MaxDD = peak DAY-RESET HWM drawdown fraction** from
+  `Escalation::PeakDayDdFraction()` — the SAME metric and reset semantics as
+  the live MI-004 rail (NOT `STAT_EQUITY_DDREL_PERCENT`), so optimizer scoring
+  never drifts from live gating.
+- **Reject (-1.0), fail-closed:** trades < 20; PF/RF invalid (NaN / ≤ 0);
+  MaxDD < 0 or NaN; MaxDD ≥ 0.045 (same boundary as the live cap).
+- **Gates are governed constants** (MIN_TRADES=20, EPSILON_DD=0.001, cap
+  0.045), NOT inputs — the optimizer must not be able to tune them away.
+- **No UI / no popups** — pure `double OnTester()` in `AdaptiveBreakoutAI.mq5`,
+  usable with `terminal64.exe /config:wfo_slice.ini`
+  (`configs/tester/wfo_slice.ini` template; `OptimizationCriterion=6` = Custom max).
+- **AOS mirror:** `bridge/contracts/wfo_fitness.py` pins the formula/gates by
+  test (`python/tests/test_wfo_fitness.py`) so the AOS side can validate WFO
+  runs with the identical contract.
 
 ## 5. Rollback
 
