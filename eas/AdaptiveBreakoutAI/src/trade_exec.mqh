@@ -13,7 +13,8 @@ public:
     enum Direction {
         DIR_NONE = 0,
         DIR_BUY  = 1,
-        DIR_SELL = -1
+        DIR_SELL = -1,
+        DIR_ANY  = 2     // MI-003: no AOS direction restriction (default)
     };
     
     // ... MarketOrder function remains the same ...
@@ -54,6 +55,23 @@ public:
         } else {
             return m_trade.SellStop(lot_size, price, symbol, sl_price, tp_price, time_type, expiration, "sell stop");
         }
+    }
+
+    // MI-004: close every open position (escalation rail). Returns count closed.
+    static int CloseAllPositions()
+    {
+        int closed = 0;
+        for(int i = PositionsTotal() - 1; i >= 0; i--)
+        {
+            ulong ticket = PositionGetTicket(i);
+            if(ticket == 0)
+                continue;
+            if(!PositionSelectByTicket(ticket))
+                continue;
+            if(m_trade.PositionClose(ticket))
+                closed++;
+        }
+        return(closed);
     }
 };
 CTrade TradeExec::m_trade; // Initialize static member
