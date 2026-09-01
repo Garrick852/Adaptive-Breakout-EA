@@ -280,3 +280,39 @@ void OnTick()
                             SB_STATUS_OK,
                             0);
 }
+
+//+------------------------------------------------------------------+
+//| MI-005: headless WFO evaluator (OnTester).                        |
+//|                                                                    |
+//| Fitness: (ProfitFactor * RecoveryFactor) / max(MaxDD, EPSILON_DD)  |
+//|   - MaxDD = peak DAY-RESET HWM drawdown from Escalation (the SAME |
+//|     metric/reset policy as the live MI-004 rail - no drift).      |
+//|   - Reject (-1.0) when: trades < gate, PF/RF invalid, MaxDD >=    |
+//|     the governance cap, or any stat is invalid (fail-closed).     |
+//|   - No UI, no popups; pure genetic-optimizer score.               |
+//| Constants are GOVERNED (not inputs): the optimizer must not be    |
+//| able to tune them away.                                           |
+//+------------------------------------------------------------------+
+double OnTester()
+{
+    const double EPSILON_DD = 0.001;   // denominator floor (0.1%) - prevents explosion at low DD
+    const int    MIN_TRADES  = 20;     // overfit gate: reject too-few-trade runs
+
+    double trades = TesterStatistics(STAT_TRADES);
+    if(!MathIsValidNumber(trades) || trades < (double)MIN_TRADES)
+        return(-1.0);                  // fail-closed: not enough evidence
+
+    double pf = TesterStatistics(STAT_PROFIT_FACTOR);
+    double rf = TesterStatistics(STAT_RECOVERY_FACTOR);
+    if(!MathIsValidNumber(pf) || !MathIsValidNumber(rf) || pf <= 0.0 || rf <= 0.0)
+        return(-1.0);                  // fail-closed: invalid stats
+
+    double maxDd = Escalation::PeakDayDdFraction();
+    if(!MathIsValidNumber(maxDd) || maxDd < 0.0)
+        return(-1.0);                  // fail-closed: invalid drawdown
+    if(maxDd >= ESCALATION_MAX_DD_FRACTION)
+        return(-1.0);                  // reject runs over the 4.5% cap (same boundary as live)
+
+    double denom = MathMax(maxDd, EPSILON_DD);
+    return((pf * rf) / denom);
+}
