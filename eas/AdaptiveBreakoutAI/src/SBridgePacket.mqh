@@ -82,6 +82,17 @@ union SB_FloatBytes
 };
 
 //+------------------------------------------------------------------+
+//| Read a uint32 from a 4-byte little-endian window (contract order).|
+//+------------------------------------------------------------------+
+inline uint SB_U32FromBytes(const uchar &b[])
+{
+    return((uint)b[0] |
+           ((uint)b[1] << 8) |
+           ((uint)b[2] << 16) |
+           ((uint)b[3] << 24));
+}
+
+//+------------------------------------------------------------------+
 //| Copy the struct into a 104-byte buffer (explicit, field by field,|
 //| so layout drift can never silently corrupt the wire image).      |
 //+------------------------------------------------------------------+
@@ -138,10 +149,10 @@ inline void SBPacketSetSymbol(SBridgePacket &pkt, const string symbol)
 
 inline void SBPacketSetSeqId(SBridgePacket &pkt, const uint seq)
 {
-    pkt.seq_id[0] = (uchar)((seq >> 24) & 0xFF);
-    pkt.seq_id[1] = (uchar)((seq >> 16) & 0xFF);
-    pkt.seq_id[2] = (uchar)((seq >> 8)  & 0xFF);
-    pkt.seq_id[3] = (uchar)(seq & 0xFF);
+    pkt.seq_id[0] = (uchar)(seq & 0xFF);          // little-endian (contract)
+    pkt.seq_id[1] = (uchar)((seq >> 8)  & 0xFF);
+    pkt.seq_id[2] = (uchar)((seq >> 16) & 0xFF);
+    pkt.seq_id[3] = (uchar)((seq >> 24) & 0xFF);
 }
 
 inline void SBPacketSetLot(SBridgePacket &pkt, const double lot)
@@ -189,10 +200,10 @@ inline void SBPacketInit(SBridgePacket &pkt, const uchar cmdType, const uchar st
     pkt.seq_id[2]   = 0;
     pkt.seq_id[3]   = 0;
     long now = (long)TimeGMT();
-    pkt.ts_sec[0]   = (uchar)((now >> 24) & 0xFF);
-    pkt.ts_sec[1]   = (uchar)((now >> 16) & 0xFF);
-    pkt.ts_sec[2]   = (uchar)((now >> 8)  & 0xFF);
-    pkt.ts_sec[3]   = (uchar)(now & 0xFF);
+    pkt.ts_sec[0]   = (uchar)(now & 0xFF);         // little-endian (contract)
+    pkt.ts_sec[1]   = (uchar)((now >> 8)  & 0xFF);
+    pkt.ts_sec[2]   = (uchar)((now >> 16) & 0xFF);
+    pkt.ts_sec[3]   = (uchar)((now >> 24) & 0xFF);
     ArrayInitialize(pkt.symbol, 0);
     pkt.lot[0]      = 0;
     pkt.lot[1]      = 0;
