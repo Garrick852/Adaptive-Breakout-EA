@@ -56,6 +56,23 @@ public:
             return m_trade.SellStop(lot_size, price, symbol, sl_price, tp_price, time_type, expiration, "sell stop");
         }
     }
+
+    // MI-004: close every open position (escalation rail). Returns count closed.
+    static int CloseAllPositions()
+    {
+        int closed = 0;
+        for(int i = PositionsTotal() - 1; i >= 0; i--)
+        {
+            ulong ticket = PositionGetTicket(i);
+            if(ticket == 0)
+                continue;
+            if(!PositionSelectByTicket(ticket))
+                continue;
+            if(m_trade.PositionClose(ticket))
+                closed++;
+        }
+        return(closed);
+    }
 };
 CTrade TradeExec::m_trade; // Initialize static member
 

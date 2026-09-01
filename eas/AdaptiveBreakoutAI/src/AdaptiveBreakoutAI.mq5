@@ -16,6 +16,7 @@
 #include "SBridgePacket.mqh"      // MI-001: 104-byte AOS<->EA wire contract
 #include "observation_tap.mqh"    // MI-002: gating-safe observation tap
 #include "aos_command.mqh"        // MI-003: AOS command channel + telemetry routing
+#include "escalation.mqh"         // MI-004: 4.5% HWM drawdown escalation rail
 
 // --- Enums and modes ---
 enum StrategyMode { MODE_BREAKOUT = 0, MODE_MEANREVERT = 1, MODE_AUTO = 2 };
@@ -101,6 +102,9 @@ int OnInit()
     // --- MI-003: AOS command channel init ---
     AosCommand::Configure(InpAosCmdEnabled, InpAosCmdStaleSec, (int)InpAosSimCmd);
 
+    // --- MI-004: escalation controller init (governance-locked 4.5% cap) ---
+    Escalation::Init();
+
     if(InpDriftBreakoutRatio <= InpDriftMeanRevRatio) {
         PrintFormat("Warning: Invalid drift thresholds (breakout=%.2f, meanrev=%.2f)", InpDriftBreakoutRatio, InpDriftMeanRevRatio);
     }
@@ -119,6 +123,13 @@ void OnDeinit(const int reason)
 // --- OnTick ---
 void OnTick()
 {
+    // --- MI-004: escalation rail FIRST (highest priority; safety over everything) ---
+    if(Escalation::OnTick(_Symbol))
+    {
+        AosCommand::WriteStatus(_Symbol, AOS_STATE_BLOCK, SB_STATUS_LOCKED, SB_FLAG_RISK_VETO);
+        return;   // locked: no trades, no AOS command processing (any BUY ignored)
+    }
+
     // --- MI-002/003: observation tap + AOS command gating (runs EVERY tick) ---
     static datetime last_hold_print = 0;
     bool obsOk = ObservationTap::OnTick(_Symbol);
