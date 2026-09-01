@@ -13,6 +13,7 @@
 #include "strategy_breakout.mqh"
 #include "strategy_meanrevert.mqh"
 #include "drift_detection.mqh"
+#include "SBridgePacket.mqh"      // MI-001: 104-byte AOS<->EA wire contract
 
 // --- Enums and modes ---
 enum StrategyMode { MODE_BREAKOUT = 0, MODE_MEANREVERT = 1, MODE_AUTO = 2 };
@@ -66,6 +67,15 @@ input double InpGlobalStopOutPct    = 15.0; // Drawdown % to emit a critical por
 int OnInit()
 {
     Print("AdaptiveBreakoutAI EA Initializing...");
+
+    // --- MI-001: 104-byte SBridgePacket wire-contract self-check (HOLD-safe) ---
+    if(!SBPacketValidateLayout())
+    {
+        Print("SBridgePacket layout validation FAILED - staying HOLD (EA will not trade).");
+        return(INIT_FAILED);
+    }
+    PrintFormat("Packet Size: %d (contract %d bytes)", (int)sizeof(SBridgePacket), SB_PACKET_SIZE);
+
     if(InpDriftBreakoutRatio <= InpDriftMeanRevRatio) {
         PrintFormat("Warning: Invalid drift thresholds (breakout=%.2f, meanrev=%.2f)", InpDriftBreakoutRatio, InpDriftMeanRevRatio);
     }
