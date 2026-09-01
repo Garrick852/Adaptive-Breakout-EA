@@ -182,6 +182,19 @@ Total: **104 bytes** (2+1+1+1+1+2+4+4+20+4+4+56+2+2).
   test (`python/tests/test_wfo_fitness.py`) so the AOS side can validate WFO
   runs with the identical contract.
 
+## 10. HITL notifier — Option 1 (DONE)
+
+- `bridge/monitor/status_notifier.py` — polls `adaptivebo_status_<SYMBOL>.bin`
+  (state-change driven; no per-poll spam), alerts on decision change,
+  BLOCK/LOCKED escalation, STALE/ERROR status, and channel-down/stale.
+  Read-only over FILE_COMMON; fail-closed sender (no `TELEGRAM_BOT_TOKEN` ⇒
+  no-op). Standard Bot API `sendMessage` — same contract as the cosmic
+  `ops/telegram` `AuraArcBot.send_message`.
+- Usage: `python -m bridge.monitor.status_notifier --symbol <SYM> --watch`
+  (`--dry-run` for the pilot smoke test). Tests:
+  `python/tests/test_status_notifier.py`.
+- Pilot HITL mode recorded as **Option 1** in `docs/PILOT_RUN_CHECKLIST.md` §4.
+
 ## 5. Rollback
 
 Every MI commit is additive/reversible:
