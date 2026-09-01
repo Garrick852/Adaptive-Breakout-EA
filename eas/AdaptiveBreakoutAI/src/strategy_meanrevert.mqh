@@ -17,7 +17,8 @@ public:
         double atr,
         double atrMultSL,
         double atrMultTP,
-        double riskPct
+        double riskPct,
+        TradeExec::Direction allowedDir = TradeExec::DIR_ANY   // MI-003: AOS direction gate
     ) {
         if (atr <= 0.0) return false;
 
@@ -41,6 +42,11 @@ public:
         }
 
         if (dir == TradeExec::DIR_NONE) {
+            return false;
+        }
+
+        // MI-003: AOS direction veto — local intent must match the AOS cmd.
+        if (allowedDir != TradeExec::DIR_ANY && dir != allowedDir) {
             return false;
         }
 
