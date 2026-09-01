@@ -15,7 +15,8 @@ exist in this repo.
 | `MQL5/Experts/AdaptiveBO/*.mqh` | `eas/AdaptiveBreakoutAI/src/*.mqh` (flat include dir; `#include "name.mqh"`) | Existing + `SBridgePacket.mqh`, `observation_tap.mqh` |
 | AOS controller / governance layer (plan: Python core) | `bridge/` (Python package; `bridge.config`, `bridge.io`, `bridge.models`) | Existing scaffold; AOS contract layer **NEW** |
 | AOS-side packet decoder (MI-001 dual-end check) | `bridge/contracts/sbridge_packet.py` | **DONE — MI-001 (PR #213)** |
-| AOS-side observation reader (MI-002) | `bridge/io/observation_reader.py` | **DONE — MI-002** |
+| AOS-side observation reader (MI-002) | `bridge/io/observation_reader.py` | **DONE — MI-002 (PR #214)** |
+| AOS command channel (MI-003) | `eas/AdaptiveBreakoutAI/src/aos_command.mqh` + `bridge/io/command_writer.py`, `bridge/io/status_reader.py` | **DONE — MI-003** |
 | `ea_runtime.cfg` (terminal sandbox) | `Files/ea_runtime.cfg` → deployed to `MQL5/Files/` | Existing |
 
 > Note: `docs/ARCHITECTURE.md` predates the `bridge/` package and does not list
@@ -76,7 +77,8 @@ Total: **104 bytes** (2+1+1+1+1+2+4+4+20+4+4+56+2+2).
   (see §6).**
 - **MI-003** — conflict priority `BLOCK/EXIT > HOLD > BUY/SELL`; `cmd_type`
   overrides any legacy command; the **local risk gate keeps final veto**
-  (even AOS+policy agreement can be rejected by local risk).
+  (even AOS+policy agreement can be rejected by local risk). — **IMPLEMENTED
+  in MI-003 (see §7).**
 - **MI-004** — unified HWM drawdown `dd = (HWM - Equity) / HWM`, HWM reset
   policy defined in governance config; the 4.5 % cap is **locked in governance
   config**, not scattered hard-codes.
@@ -107,6 +109,36 @@ Total: **104 bytes** (2+1+1+1+1+2+4+4+20+4+4+56+2+2).
 - **AOS side:** `bridge/io/observation_reader.py` — parses the tap, validates
   the header/column contract, `is_stale()` ⇒ HOLD. Tests in
   `python/tests/test_observation_reader.py`.
+
+## 7. MI-003 spec — AOS command channel + telemetry routing (DONE)
+
+- **Files (FILE_COMMON root, `Common\Files`):** `adaptivebo_command_<SYMBOL>.bin`
+  (AOS→EA, 104-byte SBridgePacket) and `adaptivebo_status_<SYMBOL>.bin`
+  (EA→AOS, 104-byte SBridgePacket). Both read/written with full validation
+  (magic/version/CRC) and atomic replace.
+- **Staleness clock (both directions):** the PAYLOAD `ts_sec` (UTC epoch
+  seconds) — never the file mtime. Same rule as the observation tap's `ts_ms`.
+  Default AOS-command stale window 2 s (plan: "disconnect > 2 s ⇒ HOLD").
+- **Conflict priority (EA-side, non-negotiable):**
+  `BLOCK > HOLD > BUY/SELL`. BLOCK / UNKNOWN / STALE ⇒ HOLD (no trade
+  evaluation); HOLD ⇒ no trade; BUY/SELL ⇒ gate ONLY that direction — the
+  local strategy intent must MATCH (conflict ⇒ HOLD) and every local risk gate
+  keeps FINAL VETO (session/prop/portfolio/cooldown/position).
+- **Telemetry routing:** the EA writes its decision (HOLD/BUY/SELL + status
+  OK/STALE/ERROR + risk_veto flag) to the status packet (throttled 1 Hz, or
+  immediately on state change). No EA→internet HTTP path exists or is added —
+  all telemetry flows through the file channel to AOS (Promtail never dials
+  the EA).
+- **AOS side:** `bridge/io/command_writer.py` (atomic command writes),
+  `bridge/io/status_reader.py` (decode + payload-clock staleness). Tests:
+  `python/tests/test_aos_channel.py`.
+- **Simulation (acceptance):** `InpAosSimCmd` input (OFF/HOLD/BUY/SELL/BLOCK)
+  lets the operator trigger a simulated AOS signal without a controller; the
+  EA logs the resulting decision and writes the status packet for the AOS
+  console to observe.
+- **MI-001 byte-order fix (landed with MI-003):** `seq_id`/`ts_sec` in the
+  MQL5 packet writer were big-endian vs the documented little-endian contract;
+  fixed to LE so the two ends agree (required for any real cross-end traffic).
 
 ## 5. Rollback
 
