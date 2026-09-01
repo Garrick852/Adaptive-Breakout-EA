@@ -16,6 +16,18 @@ FILES_DIR = MT5_DATA_DIR / "MQL5" / "Files" if MT5_DATA_DIR else None
 # Feature file naming convention (for one symbol demo; generalize later)
 FEATURE_FILE_PATTERN = "features_{symbol}.csv"
 
+# MI-002: FILE_COMMON observation tap. Common\Files is a SIBLING of the
+# terminal data dir (%APPDATA%\MetaQuotes\Terminal\Common\Files). Override
+# with OBSERVATIONS_DIR if the terminal layout differs.
+OBSERVATIONS_PREFIX = "adaptivebo_observations_"
+OBSERVATIONS_SUFFIX = ".csv"
+if os.getenv("OBSERVATIONS_DIR"):
+    OBSERVATIONS_DIR = Path(os.getenv("OBSERVATIONS_DIR"))
+elif MT5_DATA_DIR is not None:
+    OBSERVATIONS_DIR = MT5_DATA_DIR.parent / "Common" / "Files"
+else:
+    OBSERVATIONS_DIR = None
+
 # Signal file naming
 AI_SIGNAL_FILENAME = "ai_signal.txt"                # global
 AI_SIGNAL_PER_SYMBOL = "ai_signal_{symbol}.txt"     # per-symbol

@@ -13,6 +13,10 @@
 #include "strategy_breakout.mqh"
 #include "strategy_meanrevert.mqh"
 #include "drift_detection.mqh"
+#include "SBridgePacket.mqh"      // MI-001: 104-byte AOS<->EA wire contract
+#include "observation_tap.mqh"    // MI-002: gating-safe observation tap
+#include "aos_command.mqh"        // MI-003: AOS command channel + telemetry routing
+#include "escalation.mqh"         // MI-004: 4.5% HWM drawdown escalation rail
 
 // --- Enums and modes ---
 enum StrategyMode { MODE_BREAKOUT = 0, MODE_MEANREVERT = 1, MODE_AUTO = 2 };
@@ -62,10 +66,45 @@ input double InpDriftMeanRevRatio   = 0.9;
 input double InpMaxGlobalRiskPct    = 10.0; // Max equity drawdown % before blocking new trades
 input double InpGlobalStopOutPct    = 15.0; // Drawdown % to emit a critical portfolio alert
 
+// MI-002: observation tap (gating-safe observability; Phase-1 HOLD posture)
+input bool   InpTapEnabled      = true;    // write the 6-feature observation tap (FILE_COMMON)
+input int    InpTapIntervalMs   = 1000;    // min ms between atomic rewrites (>= 100)
+input int    InpTapStaleMs      = 2500;    // observation older than this => HOLD (>= 250)
+input bool   InpEnableTrading   = false;   // Phase-1 HOLD posture; true resumes local trading
+
+// MI-003: AOS command channel (SBridgePacket via FILE_COMMON)
+input bool   InpAosCmdEnabled   = true;    // enforce AOS commands; false = pre-MI-003 behavior
+input int    InpAosCmdStaleSec  = 2;       // AOS command older than this => HOLD (plan: >2s disconnect)
+input AosSimCmd InpAosSimCmd    = AOS_SIM_OFF; // simulation override for acceptance testing
+
 // --- OnInit ---
 int OnInit()
 {
     Print("AdaptiveBreakoutAI EA Initializing...");
+
+    // --- MI-001: 104-byte SBridgePacket wire-contract self-check (HOLD-safe) ---
+    if(!SBPacketValidateLayout())
+    {
+        Print("SBridgePacket layout validation FAILED - staying HOLD (EA will not trade).");
+        return(INIT_FAILED);
+    }
+    PrintFormat("Packet Size: %d (contract %d bytes)", (int)sizeof(SBridgePacket), SB_PACKET_SIZE);
+
+    // --- MI-002: observation tap init (HOLD-safe) ---
+    ObservationTap::Configure(InpTapEnabled, InpTapIntervalMs, InpTapStaleMs,
+                              InpDriftBreakoutRatio, InpDriftMeanRevRatio);
+    if(!ObservationTap::Init())
+    {
+        Print("ObservationTap init FAILED - staying HOLD (EA will not trade).");
+        return(INIT_FAILED);
+    }
+
+    // --- MI-003: AOS command channel init ---
+    AosCommand::Configure(InpAosCmdEnabled, InpAosCmdStaleSec, (int)InpAosSimCmd);
+
+    // --- MI-004: escalation controller init (governance-locked 4.5% cap) ---
+    Escalation::Init();
+
     if(InpDriftBreakoutRatio <= InpDriftMeanRevRatio) {
         PrintFormat("Warning: Invalid drift thresholds (breakout=%.2f, meanrev=%.2f)", InpDriftBreakoutRatio, InpDriftMeanRevRatio);
     }
@@ -77,12 +116,48 @@ int OnInit()
 // --- OnDeinit ---
 void OnDeinit(const int reason)
 {
+    ObservationTap::Deinit();
     Print("AdaptiveBreakoutAI EA Deinitializing. Reason: ", reason);
 }
 
 // --- OnTick ---
 void OnTick()
 {
+    // --- MI-004: escalation rail FIRST (highest priority; safety over everything) ---
+    if(Escalation::OnTick(_Symbol))
+    {
+        AosCommand::WriteStatus(_Symbol, AOS_STATE_BLOCK, SB_STATUS_LOCKED, SB_FLAG_RISK_VETO);
+        return;   // locked: no trades, no AOS command processing (any BUY ignored)
+    }
+
+    // --- MI-002/003: observation tap + AOS command gating (runs EVERY tick) ---
+    static datetime last_hold_print = 0;
+    bool obsOk = ObservationTap::OnTick(_Symbol);
+    int aosCmd = AosCommand::ReadCommand(_Symbol);          // AosCmdState
+    bool aosOk = (!InpAosCmdEnabled) || AosCommand::PriorityGate(aosCmd);
+    if(!obsOk || !aosOk || !InpEnableTrading)
+    {
+        int st = SB_STATUS_OK;
+        int fl = 0;
+        if(!obsOk)      { st = SB_STATUS_STALE; }
+        else if(!aosOk) { st = SB_STATUS_ERROR; }
+        else            { fl = SB_FLAG_RISK_VETO; }   // operator HOLD (Phase 1)
+        AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, st, fl);
+        if(TimeCurrent() - last_hold_print >= 5)
+        {
+            if(!obsOk)
+                Print("OBS-TAP: observation invalid/stale -> HOLD (no trade evaluation)");
+            else if(!aosOk)
+                PrintFormat("AOS-CMD: command %d not tradeable (BLOCK/UNKNOWN/stale) -> HOLD", aosCmd);
+            else
+                Print("HOLD mode (MI-002/003 Phase 1): InpEnableTrading=false");
+            last_hold_print = TimeCurrent();
+        }
+        return;
+    }
+    // At this point the AOS command is BUY or SELL: gate ONLY that direction.
+    TradeExec::Direction aosDir = (aosCmd == AOS_STATE_BUY) ? TradeExec::DIR_BUY : TradeExec::DIR_SELL;
+
     static datetime last_print_time = 0;
     if (TimeCurrent() - last_print_time < 5) return;
     last_print_time = TimeCurrent();
@@ -91,6 +166,7 @@ void OnTick()
 
     if (InpUseSessionFilter) {
         if (!Utils::IsWithinSession(InpSessionStartHour, InpSessionEndHour)) {
+            AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
             PrintFormat("DEBUG: FAIL - Trading session is not active.");
             return;
         }
@@ -98,6 +174,7 @@ void OnTick()
     Print("DEBUG: PASS - Session check passed.");
 
     if (!PropRules::AllowTrading(InpOperMode, InpDailyLossStopPct, InpMaxTotalDDPct)) {
+        AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
         Print("DEBUG: FAIL - Prop rules prevent trading.");
         return;
     }
@@ -105,18 +182,21 @@ void OnTick()
 
     PortfolioAgent::GlobalMonitor(InpGlobalStopOutPct);
     if (!PortfolioAgent::AllowNewTrade(InpMaxGlobalRiskPct)) {
+        AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
         Print("DEBUG: FAIL - Portfolio equity drawdown limit reached.");
         return;
     }
     Print("DEBUG: PASS - Portfolio risk check passed.");
 
     if (!Utils::PassedCooldownMinutes(InpMinMinutesBetweenTrades)) {
+        AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
         PrintFormat("DEBUG: FAIL - In cooldown period.");
         return;
     }
     Print("DEBUG: PASS - Cooldown check passed.");
 
     if (Risk::HasOpenPosition(_Symbol)) {
+        AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
         Print("DEBUG: INFO - Position already open for this symbol. Skipping.");
         return;
     }
@@ -166,7 +246,8 @@ void OnTick()
                                                 InpAtrMultTP,
                                                 InpRiskPercentPerTrade,
                                                 InpBreakoutUsePending,
-                                                InpMinAtrFilterPts * _Point); // Missing parameter added
+                                                InpMinAtrFilterPts * _Point, // Missing parameter added
+                                                aosDir); // MI-003: AOS direction gate
         if (trade_executed) Print("DEBUG: BREAKOUT - ATTEMPTING TRADE."); else Print("DEBUG: BREAKOUT - Conditions not met, no trade.");
     }
     else if(mode_to_run == MODE_MEANREVERT)
@@ -178,7 +259,8 @@ void OnTick()
                                                   atr,
                                                   InpAtrMultSL,
                                                   InpAtrMultTP,
-                                                  InpRiskPercentPerTrade);
+                                                  InpRiskPercentPerTrade,
+                                                  aosDir); // MI-003: AOS direction gate
         if (trade_executed) Print("DEBUG: MEAN REVERT - ATTEMPTING TRADE."); else Print("DEBUG: MEAN REVERT - Conditions not met, no trade.");
     }
     else
@@ -191,4 +273,46 @@ void OnTick()
         Utils::StampTradeTime();
         Print("DEBUG: Trade attempt recorded. Stamping cooldown time.");
     }
+
+    // --- MI-003: report the decision back to AOS (telemetry routing) ---
+    AosCommand::WriteStatus(_Symbol,
+                            trade_executed ? aosCmd : AOS_STATE_HOLD,
+                            SB_STATUS_OK,
+                            0);
+}
+
+//+------------------------------------------------------------------+
+//| MI-005: headless WFO evaluator (OnTester).                        |
+//|                                                                    |
+//| Fitness: (ProfitFactor * RecoveryFactor) / max(MaxDD, EPSILON_DD)  |
+//|   - MaxDD = peak DAY-RESET HWM drawdown from Escalation (the SAME |
+//|     metric/reset policy as the live MI-004 rail - no drift).      |
+//|   - Reject (-1.0) when: trades < gate, PF/RF invalid, MaxDD >=    |
+//|     the governance cap, or any stat is invalid (fail-closed).     |
+//|   - No UI, no popups; pure genetic-optimizer score.               |
+//| Constants are GOVERNED (not inputs): the optimizer must not be    |
+//| able to tune them away.                                           |
+//+------------------------------------------------------------------+
+double OnTester()
+{
+    const double EPSILON_DD = 0.001;   // denominator floor (0.1%) - prevents explosion at low DD
+    const int    MIN_TRADES  = 20;     // overfit gate: reject too-few-trade runs
+
+    double trades = TesterStatistics(STAT_TRADES);
+    if(!MathIsValidNumber(trades) || trades < (double)MIN_TRADES)
+        return(-1.0);                  // fail-closed: not enough evidence
+
+    double pf = TesterStatistics(STAT_PROFIT_FACTOR);
+    double rf = TesterStatistics(STAT_RECOVERY_FACTOR);
+    if(!MathIsValidNumber(pf) || !MathIsValidNumber(rf) || pf <= 0.0 || rf <= 0.0)
+        return(-1.0);                  // fail-closed: invalid stats
+
+    double maxDd = Escalation::PeakDayDdFraction();
+    if(!MathIsValidNumber(maxDd) || maxDd < 0.0)
+        return(-1.0);                  // fail-closed: invalid drawdown
+    if(maxDd >= ESCALATION_MAX_DD_FRACTION)
+        return(-1.0);                  // reject runs over the 4.5% cap (same boundary as live)
+
+    double denom = MathMax(maxDd, EPSILON_DD);
+    return((pf * rf) / denom);
 }
