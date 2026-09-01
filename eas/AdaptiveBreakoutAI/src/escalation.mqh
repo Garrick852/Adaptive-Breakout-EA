@@ -104,6 +104,14 @@ public:
     {
         return(s_locked);
     }
+
+    // Peak of the DAY-RESET HWM drawdown seen since Init() (fraction, e.g. 0.045).
+    // MI-005: the WFO OnTester uses this SAME metric (and reset semantics) as
+    // the live rail, so optimizer scoring can never drift from live gating.
+    static double PeakDayDdFraction()
+    {
+        return(s_peakDdFrac);
+    }
 };
 
 // --- static member definitions (initialized in Init) -------------------------
