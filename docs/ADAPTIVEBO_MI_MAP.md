@@ -16,7 +16,8 @@ exist in this repo.
 | AOS controller / governance layer (plan: Python core) | `bridge/` (Python package; `bridge.config`, `bridge.io`, `bridge.models`) | Existing scaffold; AOS contract layer **NEW** |
 | AOS-side packet decoder (MI-001 dual-end check) | `bridge/contracts/sbridge_packet.py` | **DONE — MI-001 (PR #213)** |
 | AOS-side observation reader (MI-002) | `bridge/io/observation_reader.py` | **DONE — MI-002 (PR #214)** |
-| AOS command channel (MI-003) | `eas/AdaptiveBreakoutAI/src/aos_command.mqh` + `bridge/io/command_writer.py`, `bridge/io/status_reader.py` | **DONE — MI-003** |
+| AOS command channel (MI-003) | `eas/AdaptiveBreakoutAI/src/aos_command.mqh` + `bridge/io/command_writer.py`, `bridge/io/status_reader.py` | **DONE — MI-003 (PR #215)** |
+| Escalation controller (MI-004) | `eas/AdaptiveBreakoutAI/src/escalation.mqh` + `bridge/contracts/aos_priority.py` | **DONE — MI-004** |
 | `ea_runtime.cfg` (terminal sandbox) | `Files/ea_runtime.cfg` → deployed to `MQL5/Files/` | Existing |
 
 > Note: `docs/ARCHITECTURE.md` predates the `bridge/` package and does not list
@@ -81,7 +82,7 @@ Total: **104 bytes** (2+1+1+1+1+2+4+4+20+4+4+56+2+2).
   in MI-003 (see §7).**
 - **MI-004** — unified HWM drawdown `dd = (HWM - Equity) / HWM`, HWM reset
   policy defined in governance config; the 4.5 % cap is **locked in governance
-  config**, not scattered hard-codes.
+  config**, not scattered hard-codes. — **IMPLEMENTED in MI-004 (see §8).**
 - **MI-005** — fitness `(PF * RF) / max(MaxDD, epsilon)` with a **min-trades
   gate** (trades < N ⇒淘汰) to avoid overfit pseudo-optima.
 
@@ -139,6 +140,27 @@ Total: **104 bytes** (2+1+1+1+1+2+4+4+20+4+4+56+2+2).
 - **MI-001 byte-order fix (landed with MI-003):** `seq_id`/`ts_sec` in the
   MQL5 packet writer were big-endian vs the documented little-endian contract;
   fixed to LE so the two ends agree (required for any real cross-end traffic).
+
+## 8. MI-004 spec — Escalation Controller (DONE)
+
+- **Formula (unified, both sides):** `dd = (HWM − Equity) / HWM`, HWM =
+  day-reset equity high-water mark (reset at the UTC day boundary).
+- **Governance-locked cap:** `ESCALATION_MAX_DD_FRACTION = 0.045` in
+  `escalation.mqh` (NOT an EA input — not open to external optimization) and
+  `HARD_DD_CAP = 0.045` in `bridge/contracts/aos_priority.py` (wire-value
+  parity, pinned by test). Changing either requires a governed approval.
+- **On breach (dd ≥ 0.045):** `TradeExec::CloseAllPositions()` (all tickets),
+  latch `LOCKED` (BLOCK/EXIT), ignore EVERY command including any AOS BUY.
+- **Release:** hysteresis — unlock only when dd < 0.040 (day rollover resets
+  HWM, collapsing dd to ~0, so this also releases naturally each day).
+- **Rail position:** first thing in `OnTick()` (highest priority, before tap /
+  AOS gating / strategies). While locked the EA writes a status packet
+  (BLOCK / LOCKED / risk_veto) and does nothing else.
+- **AOS side:** `bridge/contracts/aos_priority.py` — single explicit priority
+  resolver (`BLOCK > HOLD > BUY/SELL`, conflict ⇒ HOLD, unknown ⇒ HOLD) and
+  `hard_cap_decision(dd)`; the cap injects one more source into `resolve()`
+  so the 4.5 % integration is one function call. Tests:
+  `python/tests/test_aos_priority.py`.
 
 ## 5. Rollback
 
