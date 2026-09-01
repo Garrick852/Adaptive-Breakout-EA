@@ -10,11 +10,12 @@ exist in this repo.
 
 | Plan path | Real repo path | Status |
 | --- | --- | --- |
-| `MQL5/Include/Shared/SBridgePacket.mqh` | `eas/AdaptiveBreakoutAI/src/SBridgePacket.mqh` (packaged to `MQL5/Include/AdaptiveBreakoutEA/SBridgePacket.mqh` by `package_mt5.py`) | **NEW (MI-001)** |
-| `MQL5/Experts/AdaptiveBO/AdaptiveBO.mq5` | `eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5` (packaged to `MQL5/Experts/AdaptiveBreakoutEA/`) | Existing EA (v1.04) |
-| `MQL5/Experts/AdaptiveBO/*.mqh` | `eas/AdaptiveBreakoutAI/src/*.mqh` (flat include dir; `#include "name.mqh"`) | Existing |
+| `MQL5/Include/Shared/SBridgePacket.mqh` | `eas/AdaptiveBreakoutAI/src/SBridgePacket.mqh` (packaged to `MQL5/Include/AdaptiveBreakoutEA/SBridgePacket.mqh` by `package_mt5.py`) | **DONE — MI-001 (PR #213)** |
+| `MQL5/Experts/AdaptiveBO/AdaptiveBO.mq5` | `eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5` (packaged to `MQL5/Experts/AdaptiveBreakoutEA/`) | Existing EA (v1.04) + MI-001/002 hooks |
+| `MQL5/Experts/AdaptiveBO/*.mqh` | `eas/AdaptiveBreakoutAI/src/*.mqh` (flat include dir; `#include "name.mqh"`) | Existing + `SBridgePacket.mqh`, `observation_tap.mqh` |
 | AOS controller / governance layer (plan: Python core) | `bridge/` (Python package; `bridge.config`, `bridge.io`, `bridge.models`) | Existing scaffold; AOS contract layer **NEW** |
-| AOS-side packet decoder (MI-001 dual-end check) | `bridge/contracts/sbridge_packet.py` | **NEW (MI-001)** |
+| AOS-side packet decoder (MI-001 dual-end check) | `bridge/contracts/sbridge_packet.py` | **DONE — MI-001 (PR #213)** |
+| AOS-side observation reader (MI-002) | `bridge/io/observation_reader.py` | **DONE — MI-002** |
 | `ea_runtime.cfg` (terminal sandbox) | `Files/ea_runtime.cfg` → deployed to `MQL5/Files/` | Existing |
 
 > Note: `docs/ARCHITECTURE.md` predates the `bridge/` package and does not list
@@ -71,7 +72,8 @@ Total: **104 bytes** (2+1+1+1+1+2+4+4+20+4+4+56+2+2).
   (`features_<symbol>.csv` is the existing convention; extend to
   `observations_<symbol>.csv` if needed), **atomic replace** (write `*.tmp`,
   `FileRename` over the target), and carry `ts_ms` + `seq_id` in the payload.
-  Write failure ⇒ HOLD, never a fatal exception.
+  Write failure ⇒ HOLD, never a fatal exception. — **IMPLEMENTED in MI-002
+  (see §6).**
 - **MI-003** — conflict priority `BLOCK/EXIT > HOLD > BUY/SELL`; `cmd_type`
   overrides any legacy command; the **local risk gate keeps final veto**
   (even AOS+policy agreement can be rejected by local risk).
@@ -80,6 +82,31 @@ Total: **104 bytes** (2+1+1+1+1+2+4+4+20+4+4+56+2+2).
   config**, not scattered hard-codes.
 - **MI-005** — fitness `(PF * RF) / max(MaxDD, epsilon)` with a **min-trades
   gate** (trades < N ⇒淘汰) to avoid overfit pseudo-optima.
+
+## 6. MI-002 spec — 6-feature observation tap (DONE)
+
+- **File (FILE_COMMON root, `Common\Files`):** `adaptivebo_observations_<SYMBOL>.csv`,
+  header + exactly ONE data line (latest observation), replaced atomically:
+  write `*.csv.tmp` then `FileMove(..., FILE_REWRITE)`. No per-tick files.
+- **Columns (training-contract order):** `ts_ms, seq_id, symbol, timeframe,
+  regime_bias, adx_norm, ema_crossover, range_width_frac, range_position,
+  drawdown_fraction`.
+- **Feature formulas** (canonical EA-side formulas — the retired AuraArc_Native
+  formulas are not in any repo, so these are documented here as authoritative):
+  - `regime_bias` — `Drift::Advise()` ∈ {-1, 0, +1} (strategy regime).
+  - `adx_norm` — `iADX(14)` MAIN / 100, clamped [0, 1].
+  - `ema_crossover` — `(ema12 − ema26) / ATR`, clamped [−1, 1] (closed bar).
+  - `range_width_frac` — `(boxHigh − boxLow) / ATR` (Donchian 24, closed bars).
+  - `range_position` — `(close − boxLow) / (boxHigh − boxLow)`, clamped [0, 1].
+  - `drawdown_fraction` — `(dayHwm − equity) / dayHwm`, day-reset HWM.
+- **HOLD gating (non-negotiable):** write failure ⇒ invalid; `ts_ms` older than
+  `InpTapStaleMs` (default 2500) ⇒ stale ⇒ invalid; any invalid observation ⇒
+  EA OnTick returns before any trade evaluation. `InpTapEnabled=false` disables
+  gating (backward compatible). Phase-1 posture: `InpEnableTrading=false`
+  (EA stays HOLD; observability continues).
+- **AOS side:** `bridge/io/observation_reader.py` — parses the tap, validates
+  the header/column contract, `is_stale()` ⇒ HOLD. Tests in
+  `python/tests/test_observation_reader.py`.
 
 ## 5. Rollback
 
