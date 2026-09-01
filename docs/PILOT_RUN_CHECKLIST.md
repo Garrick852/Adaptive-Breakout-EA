@@ -41,12 +41,15 @@ References: `docs/MT5_SETUP.md`, `docs/MQL5_DEPLOYMENT.md`,
 - [ ] **Escalation drill:** open a large losing manual position (e.g. 1.0 lot) so the day-HWM drawdown reaches 4.5 % → expect `ESCALATION: drawdown 0.0450 ... CloseAll + BLOCK/EXIT`, all positions closed, status packet `BLOCK/LOCKED`, EA refuses new trades; recovery below 4.0 % → `UNLOCKED` (MI-004).
 - [ ] Status heartbeat: `Common\Files\adaptivebo_status_<SYMBOL>.bin` decodes cleanly (magic/version/CRC) and its payload `ts_sec` stays fresh.
 
-## 4. HITL mode (OPEN DECISION — record choice before soak)
+## 4. HITL mode — SELECTED: Option 1 (production-like confidence)
 
-- [ ] **Mode selected (choose one and note it here):**
-  - **Option 1 (preferred):** cosmic notifier watches `adaptivebo_status_*.bin` → Telegram alerts on decision changes and escalation trips (requires the small notifier-bridge task; see `docs/ADAPTIVEBO_MI_MAP.md`).
-  - **Option 2:** manual checkpoint sign-off (T-0 / 24 h / 48 h / 72 h) + escalation log polling.
-- [ ] HITL checkpoints armed at **T-0 / 24 h / 48 h / 72 h**.
+- [x] **Option 1 (selected):** the notifier bridge (`bridge/monitor/status_notifier.py`) watches `adaptivebo_status_*.bin` → Telegram alerts on decision changes and escalation trips (state-change driven, read-only, fail-closed sender).
+- [ ] Notifier deployed on the trading machine:
+      `set TELEGRAM_BOT_TOKEN=...` and `set TELEGRAM_CHAT_ID=...`
+      `python -m bridge.monitor.status_notifier --symbol <SYMBOL> --watch`
+      (add `--out <Common\Files>` when `OBSERVATIONS_DIR` is not set; run `--dry-run` first)
+- [ ] Notifier smoke test: publish `--cmd 3` via `command_writer` → expect the ESCALATION/LOCKDOWN Telegram alert (or the dry-run line).
+- [ ] HITL checkpoints armed at **T-0 / 24 h / 48 h / 72 h** (Option-1 alerts + checkpoint sign-offs).
 
 ## 5. Soak (0–72 h)
 
@@ -69,4 +72,4 @@ References: `docs/MT5_SETUP.md`, `docs/MQL5_DEPLOYMENT.md`,
 ## Flags (open items, not part of this checklist's mechanical steps)
 
 1. **Lot sizing** is the TradeExec placeholder (0.01) — correct for the pilot, but `InpRiskPercentPerTrade` is not yet honored; a governance review is required before scaling beyond 0.01 (a real follow-up code slice).
-2. **Telegram/HITL wiring** is the §4 open decision; the adapter EA has no Telegram path by design (telemetry is file-only), so the notifier side lives with the cosmic `ops/telegram` + Hermes tooling.
+2. **Telegram/HITL wiring** — **resolved: Option 1** (see §4). The notifier bridge (`bridge/monitor/status_notifier.py`) uses the standard Bot API, the same contract as the cosmic `ops/telegram` `AuraArcBot.send_message` (`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`).
