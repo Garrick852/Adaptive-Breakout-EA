@@ -14,6 +14,7 @@
 #include "strategy_meanrevert.mqh"
 #include "drift_detection.mqh"
 #include "SBridgePacket.mqh"      // MI-001: 104-byte AOS<->EA wire contract
+#include "observation_tap.mqh"    // MI-002: gating-safe observation tap
 
 // --- Enums and modes ---
 enum StrategyMode { MODE_BREAKOUT = 0, MODE_MEANREVERT = 1, MODE_AUTO = 2 };
@@ -63,6 +64,12 @@ input double InpDriftMeanRevRatio   = 0.9;
 input double InpMaxGlobalRiskPct    = 10.0; // Max equity drawdown % before blocking new trades
 input double InpGlobalStopOutPct    = 15.0; // Drawdown % to emit a critical portfolio alert
 
+// MI-002: observation tap (gating-safe observability; Phase-1 HOLD posture)
+input bool   InpTapEnabled      = true;    // write the 6-feature observation tap (FILE_COMMON)
+input int    InpTapIntervalMs   = 1000;    // min ms between atomic rewrites (>= 100)
+input int    InpTapStaleMs      = 2500;    // observation older than this => HOLD (>= 250)
+input bool   InpEnableTrading   = false;   // Phase-1 HOLD posture; true resumes local trading
+
 // --- OnInit ---
 int OnInit()
 {
@@ -76,6 +83,15 @@ int OnInit()
     }
     PrintFormat("Packet Size: %d (contract %d bytes)", (int)sizeof(SBridgePacket), SB_PACKET_SIZE);
 
+    // --- MI-002: observation tap init (HOLD-safe) ---
+    ObservationTap::Configure(InpTapEnabled, InpTapIntervalMs, InpTapStaleMs,
+                              InpDriftBreakoutRatio, InpDriftMeanRevRatio);
+    if(!ObservationTap::Init())
+    {
+        Print("ObservationTap init FAILED - staying HOLD (EA will not trade).");
+        return(INIT_FAILED);
+    }
+
     if(InpDriftBreakoutRatio <= InpDriftMeanRevRatio) {
         PrintFormat("Warning: Invalid drift thresholds (breakout=%.2f, meanrev=%.2f)", InpDriftBreakoutRatio, InpDriftMeanRevRatio);
     }
@@ -87,12 +103,29 @@ int OnInit()
 // --- OnDeinit ---
 void OnDeinit(const int reason)
 {
+    ObservationTap::Deinit();
     Print("AdaptiveBreakoutAI EA Deinitializing. Reason: ", reason);
 }
 
 // --- OnTick ---
 void OnTick()
 {
+    // --- MI-002: observation tap + Phase-1 HOLD gating (runs EVERY tick) ----
+    static datetime last_hold_print = 0;
+    bool obsOk = ObservationTap::OnTick(_Symbol);
+    if(!obsOk || !InpEnableTrading)
+    {
+        if(TimeCurrent() - last_hold_print >= 5)
+        {
+            if(!obsOk)
+                Print("OBS-TAP: observation invalid/stale -> HOLD (no trade evaluation)");
+            else
+                Print("HOLD mode (MI-002 Phase 1): InpEnableTrading=false");
+            last_hold_print = TimeCurrent();
+        }
+        return;
+    }
+
     static datetime last_print_time = 0;
     if (TimeCurrent() - last_print_time < 5) return;
     last_print_time = TimeCurrent();
