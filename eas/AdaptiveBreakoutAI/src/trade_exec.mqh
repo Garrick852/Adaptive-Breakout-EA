@@ -13,7 +13,8 @@ public:
     enum Direction {
         DIR_NONE = 0,
         DIR_BUY  = 1,
-        DIR_SELL = -1
+        DIR_SELL = -1,
+        DIR_ANY  = 2     // MI-003: no AOS direction restriction (default)
     };
     
     // ... MarketOrder function remains the same ...
