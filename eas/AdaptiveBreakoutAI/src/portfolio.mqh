@@ -39,7 +39,7 @@ public:
         double balance  = AccountInfoDouble(ACCOUNT_BALANCE);
         double equity   = AccountInfoDouble(ACCOUNT_EQUITY);
         double margin   = AccountInfoDouble(ACCOUNT_MARGIN);
-        double freeMargin = AccountInfoDouble(ACCOUNT_FREEMARGIN);
+        double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
 
         if(balance <= 0.0)
             return;

@@ -6,7 +6,8 @@ A diagnostics-first trading system scaffold with an MQL5 EA, Python tooling, JSO
 1. `make setup`
 2. `make lint && make test`
 3. `make glyphs` (renders demo glyphs and compares against golden)
-4. Open MetaTrader 5, attach `eas/AdaptiveBreakoutAI/src/AdaptiveBreakoutAI.mq5` to a chart, enable Algo Trading
+4. Review [native and AOS-controlled modes](docs/NATIVE_MODE.md) before isolated MT5 testing.
+   Execution defaults to disabled; selecting native mode is separate from arming.
 
 ## Repo map
 - `eas/AdaptiveBreakoutAI`: EA source and docs

@@ -73,7 +73,7 @@ input int    InpTapStaleMs      = 2500;    // observation older than this => HOL
 input bool   InpEnableTrading   = false;   // Phase-1 HOLD posture; true resumes local trading
 
 // MI-003: AOS command channel (SBridgePacket via FILE_COMMON)
-input bool   InpAosCmdEnabled   = true;    // enforce AOS commands; false = pre-MI-003 behavior
+input bool   InpAosCmdEnabled   = true;    // true = AOS-controlled; false = native local strategies
 input int    InpAosCmdStaleSec  = 2;       // AOS command older than this => HOLD (plan: >2s disconnect)
 input AosSimCmd InpAosSimCmd    = AOS_SIM_OFF; // simulation override for acceptance testing
 
@@ -101,6 +101,9 @@ int OnInit()
 
     // --- MI-003: AOS command channel init ---
     AosCommand::Configure(InpAosCmdEnabled, InpAosCmdStaleSec, (int)InpAosSimCmd);
+    PrintFormat("EXECUTION: mode=%s, armed=%s",
+                InpAosCmdEnabled ? "AOS-controlled" : "native",
+                InpEnableTrading ? "true" : "false (HOLD)");
 
     // --- MI-004: escalation controller init (governance-locked 4.5% cap) ---
     Escalation::Init();
@@ -133,7 +136,7 @@ void OnTick()
     // --- MI-002/003: observation tap + AOS command gating (runs EVERY tick) ---
     static datetime last_hold_print = 0;
     bool obsOk = ObservationTap::OnTick(_Symbol);
-    int aosCmd = AosCommand::ReadCommand(_Symbol);          // AosCmdState
+    int aosCmd = InpAosCmdEnabled ? AosCommand::ReadCommand(_Symbol) : AOS_STATE_UNKNOWN;
     bool aosOk = (!InpAosCmdEnabled) || AosCommand::PriorityGate(aosCmd);
     if(!obsOk || !aosOk || !InpEnableTrading)
     {
@@ -155,8 +158,9 @@ void OnTick()
         }
         return;
     }
-    // At this point the AOS command is BUY or SELL: gate ONLY that direction.
-    TradeExec::Direction aosDir = (aosCmd == AOS_STATE_BUY) ? TradeExec::DIR_BUY : TradeExec::DIR_SELL;
+    // Native strategies choose either direction; controlled mode has already passed PriorityGate.
+    TradeExec::Direction allowedDir = !InpAosCmdEnabled ? TradeExec::DIR_ANY :
+                                     (aosCmd == AOS_STATE_BUY ? TradeExec::DIR_BUY : TradeExec::DIR_SELL);
 
     static datetime last_print_time = 0;
     if (TimeCurrent() - last_print_time < 5) return;
@@ -247,7 +251,7 @@ void OnTick()
                                                 InpRiskPercentPerTrade,
                                                 InpBreakoutUsePending,
                                                 InpMinAtrFilterPts * _Point, // Missing parameter added
-                                                aosDir); // MI-003: AOS direction gate
+                                                allowedDir);
         if (trade_executed) Print("DEBUG: BREAKOUT - ATTEMPTING TRADE."); else Print("DEBUG: BREAKOUT - Conditions not met, no trade.");
     }
     else if(mode_to_run == MODE_MEANREVERT)
@@ -260,7 +264,7 @@ void OnTick()
                                                   InpAtrMultSL,
                                                   InpAtrMultTP,
                                                   InpRiskPercentPerTrade,
-                                                  aosDir); // MI-003: AOS direction gate
+                                                  allowedDir);
         if (trade_executed) Print("DEBUG: MEAN REVERT - ATTEMPTING TRADE."); else Print("DEBUG: MEAN REVERT - Conditions not met, no trade.");
     }
     else
@@ -272,11 +276,13 @@ void OnTick()
     {
         Utils::StampTradeTime();
         Print("DEBUG: Trade attempt recorded. Stamping cooldown time.");
+        PrintFormat("EXECUTION: mode=%s, local strategy order attempt recorded",
+                    InpAosCmdEnabled ? "AOS-controlled" : "native");
     }
 
-    // --- MI-003: report the decision back to AOS (telemetry routing) ---
+    // The wire has no native-action code; never invent a publisher BUY/SELL.
     AosCommand::WriteStatus(_Symbol,
-                            trade_executed ? aosCmd : AOS_STATE_HOLD,
+                            (InpAosCmdEnabled && trade_executed) ? aosCmd : AOS_STATE_HOLD,
                             SB_STATUS_OK,
                             0);
 }
