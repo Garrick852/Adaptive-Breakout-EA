@@ -33,7 +33,7 @@ public:
 
         // These function calls will now be recognized by the compiler
         if (boxMode == BOX_DONCHIAN) {
-            hasBox = Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, 0, boxHigh, boxLow);
+            hasBox = Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, 1, boxHigh, boxLow);
         } else {
             hasBox = Volatility::TimeRange(symbol, PERIOD_CURRENT, timeFrom, timeTo, 0, boxHigh, boxLow);
         }

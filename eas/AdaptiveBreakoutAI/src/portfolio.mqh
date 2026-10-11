@@ -25,8 +25,9 @@ public:
 
         if(ddPct >= maxDrawdownPct)
         {
-            PrintFormat("PortfolioAgent::AllowNewTrade -> BLOCKED: equity drawdown %.2f%% >= limit %.2f%%",
-                        ddPct, maxDrawdownPct);
+            if(!MQLInfoInteger(MQL_OPTIMIZATION))
+                PrintFormat("PortfolioAgent::AllowNewTrade -> BLOCKED: equity drawdown %.2f%% >= limit %.2f%%",
+                            ddPct, maxDrawdownPct);
             return(false);
         }
         return(true);
@@ -46,8 +47,9 @@ public:
 
         double ddPct = (balance - equity) / balance * 100.0;
 
-        PrintFormat("PortfolioAgent::GlobalMonitor -> Balance=%.2f  Equity=%.2f  DD=%.2f%%  Margin=%.2f  Free=%.2f",
-                    balance, equity, ddPct, margin, freeMargin);
+        if(!MQLInfoInteger(MQL_OPTIMIZATION))
+            PrintFormat("PortfolioAgent::GlobalMonitor -> Balance=%.2f  Equity=%.2f  DD=%.2f%%  Margin=%.2f  Free=%.2f",
+                        balance, equity, ddPct, margin, freeMargin);
 
         if(stopOutPct > 0.0 && ddPct >= stopOutPct)
         {
