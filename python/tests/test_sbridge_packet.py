@@ -16,10 +16,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from bridge.contracts.sbridge_packet import (  # noqa: E402
-    CmdType,
-    ContractError,
     FIELD_MAP,
     PACKET_SIZE,
+    CmdType,
+    ContractError,
     Status,
     crc16_modbus,
     decode,
