@@ -51,3 +51,6 @@ logs/*.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Local deploy artifacts (MT5 backups, presets, compile logs)
+backups/
