@@ -33,15 +33,15 @@ public:
 
         // These function calls will now be recognized by the compiler
         if (boxMode == BOX_DONCHIAN) {
-            hasBox = Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, 0, boxHigh, boxLow);
+            hasBox = Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, 1, boxHigh, boxLow);
         } else {
-            hasBox = Volatility::TimeRange(symbol, PERIOD_CURRENT, timeFrom, timeTo, 0, boxHigh, boxLow);
+            hasBox = Volatility::TimeRange(symbol, PERIOD_CURRENT, timeFrom, timeTo, 1, boxHigh, boxLow);
         }
         
         if (!hasBox) return false;
 
         MqlRates rates[];
-        if (CopyRates(symbol, PERIOD_CURRENT, 0, 1, rates) <= 0) return false;
+        if (CopyRates(symbol, PERIOD_CURRENT, 1, 1, rates) <= 0) return false;
         
         double currentClose = rates[0].close;
         double point = SymbolInfoDouble(symbol, SYMBOL_POINT);

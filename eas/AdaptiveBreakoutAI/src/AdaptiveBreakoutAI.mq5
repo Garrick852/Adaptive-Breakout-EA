@@ -29,6 +29,7 @@ input int    InpSessionStartHour    = 8;
 input int    InpSessionEndHour      = 16;
 
 // Prop rules / daily loss / total DD / cooldown
+input bool   InpEnablePropRules     = false; // true = FTMO 5%/10% rails; false = raw signal pass
 input PropRules::OperationMode InpOperMode = PropRules::MODE_NORMAL;
 input double InpDailyLossStopPct    = 5.0;
 input double InpMaxTotalDDPct       = 10.0;
@@ -36,6 +37,7 @@ input int    InpMinMinutesBetweenTrades = 30;
 
 // Risk
 input double InpRiskPercentPerTrade = 1.0;
+input double InpMaxLots             = 10.0;  // AOS.TWIN §6 pre-trade max lot cap
 
 // Breakout Strategy
 input StrategyMode InpStrategyMode         = MODE_AUTO;
@@ -107,6 +109,7 @@ int OnInit()
 
     // --- MI-004: escalation controller init (governance-locked 4.5% cap) ---
     Escalation::Init();
+    TradeExec::SetMaxLot(InpMaxLots);   // AOS.TWIN §6 pre-trade max lot cap
 
     if(InpDriftBreakoutRatio <= InpDriftMeanRevRatio) {
         PrintFormat("Warning: Invalid drift thresholds (breakout=%.2f, meanrev=%.2f)", InpDriftBreakoutRatio, InpDriftMeanRevRatio);
@@ -177,7 +180,7 @@ void OnTick()
     }
     Print("DEBUG: PASS - Session check passed.");
 
-    if (!PropRules::AllowTrading(InpOperMode, InpDailyLossStopPct, InpMaxTotalDDPct)) {
+    if (!PropRules::AllowTrading(InpEnablePropRules, InpOperMode, InpDailyLossStopPct, InpMaxTotalDDPct)) {
         AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
         Print("DEBUG: FAIL - Prop rules prevent trading.");
         return;

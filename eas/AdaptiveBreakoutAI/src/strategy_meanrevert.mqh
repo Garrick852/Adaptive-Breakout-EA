@@ -23,13 +23,13 @@ public:
         if (atr <= 0.0) return false;
 
         double ema[];
-        if (CopyBuffer(iMA(symbol, PERIOD_CURRENT, emaPeriod, 0, MODE_EMA, PRICE_CLOSE), 0, 0, 1, ema) <= 0) {
+        if (CopyBuffer(iMA(symbol, PERIOD_CURRENT, emaPeriod, 0, MODE_EMA, PRICE_CLOSE), 0, 1, 1, ema) <= 0) {
             return false;
         }
         double emaValue = ema[0];
 
         MqlRates rates[];
-        if (CopyRates(symbol, PERIOD_CURRENT, 0, 1, rates) <= 0) return false;
+        if (CopyRates(symbol, PERIOD_CURRENT, 1, 1, rates) <= 0) return false;
         double currentClose = rates[0].close;
 
         double zScore = (currentClose - emaValue) / atr;
