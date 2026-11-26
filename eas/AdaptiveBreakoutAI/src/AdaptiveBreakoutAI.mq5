@@ -73,6 +73,7 @@ input bool   InpTapEnabled      = true;    // write the 6-feature observation ta
 input int    InpTapIntervalMs   = 1000;    // min ms between atomic rewrites (>= 100)
 input int    InpTapStaleMs      = 2500;    // observation older than this => HOLD (>= 250)
 input bool   InpEnableTrading   = false;   // Phase-1 HOLD posture; true resumes local trading
+input bool   InpVerboseDebug   = false;   // gate per-tick DEBUG:/monitor prints (default silent)
 
 // MI-003: AOS command channel (SBridgePacket via FILE_COMMON)
 input bool   InpAosCmdEnabled   = true;    // true = AOS-controlled; false = native local strategies
@@ -152,11 +153,11 @@ void OnTick()
         if(TimeCurrent() - last_hold_print >= 5)
         {
             if(!obsOk)
-                Print("OBS-TAP: observation invalid/stale -> HOLD (no trade evaluation)");
+                if(InpVerboseDebug) Print("OBS-TAP: observation invalid/stale -> HOLD (no trade evaluation)");
             else if(!aosOk)
-                PrintFormat("AOS-CMD: command %d not tradeable (BLOCK/UNKNOWN/stale) -> HOLD", aosCmd);
+                if(InpVerboseDebug) PrintFormat("AOS-CMD: command %d not tradeable (BLOCK/UNKNOWN/stale) -> HOLD", aosCmd);
             else
-                Print("HOLD mode (MI-002/003 Phase 1): InpEnableTrading=false");
+                if(InpVerboseDebug) Print("HOLD mode (MI-002/003 Phase 1): InpEnableTrading=false");
             last_hold_print = TimeCurrent();
         }
         return;
@@ -168,78 +169,78 @@ void OnTick()
     static datetime last_print_time = 0;
     if (TimeCurrent() - last_print_time < 5) return;
     last_print_time = TimeCurrent();
-    PrintFormat("--------------------------------------------------");
-    PrintFormat("Tick received for %s at %s", _Symbol, TimeToString(TimeCurrent()));
+    if(InpVerboseDebug) PrintFormat("--------------------------------------------------");
+    if(InpVerboseDebug) PrintFormat("Tick received for %s at %s", _Symbol, TimeToString(TimeCurrent()));
 
     if (InpUseSessionFilter) {
         if (!Utils::IsWithinSession(InpSessionStartHour, InpSessionEndHour)) {
             AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
-            PrintFormat("DEBUG: FAIL - Trading session is not active.");
+            if(InpVerboseDebug) PrintFormat("DEBUG: FAIL - Trading session is not active.");
             return;
         }
     }
-    Print("DEBUG: PASS - Session check passed.");
+    if(InpVerboseDebug) Print("DEBUG: PASS - Session check passed.");
 
     if (!PropRules::AllowTrading(InpEnablePropRules, InpOperMode, InpDailyLossStopPct, InpMaxTotalDDPct)) {
         AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
-        Print("DEBUG: FAIL - Prop rules prevent trading.");
+        if(InpVerboseDebug) Print("DEBUG: FAIL - Prop rules prevent trading.");
         return;
     }
-    Print("DEBUG: PASS - Prop rules check passed.");
+    if(InpVerboseDebug) Print("DEBUG: PASS - Prop rules check passed.");
 
     PortfolioAgent::GlobalMonitor(InpGlobalStopOutPct);
     if (!PortfolioAgent::AllowNewTrade(InpMaxGlobalRiskPct)) {
         AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
-        Print("DEBUG: FAIL - Portfolio equity drawdown limit reached.");
+        if(InpVerboseDebug) Print("DEBUG: FAIL - Portfolio equity drawdown limit reached.");
         return;
     }
-    Print("DEBUG: PASS - Portfolio risk check passed.");
+    if(InpVerboseDebug) Print("DEBUG: PASS - Portfolio risk check passed.");
 
     if (!Utils::PassedCooldownMinutes(InpMinMinutesBetweenTrades)) {
         AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
-        PrintFormat("DEBUG: FAIL - In cooldown period.");
+        if(InpVerboseDebug) PrintFormat("DEBUG: FAIL - In cooldown period.");
         return;
     }
-    Print("DEBUG: PASS - Cooldown check passed.");
+    if(InpVerboseDebug) Print("DEBUG: PASS - Cooldown check passed.");
 
     if (Risk::HasOpenPosition(_Symbol)) {
         AosCommand::WriteStatus(_Symbol, AOS_STATE_HOLD, SB_STATUS_OK, SB_FLAG_RISK_VETO); // local veto
-        Print("DEBUG: INFO - Position already open for this symbol. Skipping.");
+        if(InpVerboseDebug) Print("DEBUG: INFO - Position already open for this symbol. Skipping.");
         return;
     }
-    Print("DEBUG: PASS - No open positions for this symbol.");
+    if(InpVerboseDebug) Print("DEBUG: PASS - No open positions for this symbol.");
 
     // --- Core Logic ---
     ENUM_TIMEFRAMES atr_tf = InpAtrTimeframe == PERIOD_CURRENT ? (ENUM_TIMEFRAMES)Period() : InpAtrTimeframe;
     double atr = Volatility::ATR(_Symbol, atr_tf, InpAtrPeriod);
-    PrintFormat("DEBUG: ATR value is %.5f for period %d.", atr, InpAtrPeriod);
+    if(InpVerboseDebug) PrintFormat("DEBUG: ATR value is %.5f for period %d.", atr, InpAtrPeriod);
 
     // --- FIX #2: Pass only the ATR value to the Update function ---
     Drift::Update(atr); 
 
     if (atr <= 0.0) {
-        Print("DEBUG: FAIL - ATR is zero or invalid.");
+        if(InpVerboseDebug) Print("DEBUG: FAIL - ATR is zero or invalid.");
         return;
     }
-    Print("DEBUG: PASS - ATR check passed.");
+    if(InpVerboseDebug) Print("DEBUG: PASS - ATR check passed.");
 
     // --- Strategy Selection ---
     StrategyMode mode_to_run = InpStrategyMode;
     if(InpStrategyMode == MODE_AUTO) {
         int driftSignal = Drift::Advise(InpDriftBreakoutRatio, InpDriftMeanRevRatio);
-        PrintFormat("DEBUG: AUTO MODE - Drift signal is: %d (1=Breakout, -1=MeanRevert)", driftSignal);
+        if(InpVerboseDebug) PrintFormat("DEBUG: AUTO MODE - Drift signal is: %d (1=Breakout, -1=MeanRevert)", driftSignal);
         if(driftSignal == 1) mode_to_run = MODE_BREAKOUT;
         else if(driftSignal == -1) mode_to_run = MODE_MEANREVERT;
         else mode_to_run = (StrategyMode)-1; // No strategy
     } else {
-        PrintFormat("DEBUG: MANUAL MODE - Strategy forced to: %s", EnumToString(mode_to_run));
+        if(InpVerboseDebug) PrintFormat("DEBUG: MANUAL MODE - Strategy forced to: %s", EnumToString(mode_to_run));
     }
     
     bool trade_executed = false;
     
     if(mode_to_run == MODE_BREAKOUT)
     {
-        Print("DEBUG: Executing BREAKOUT strategy...");
+        if(InpVerboseDebug) Print("DEBUG: Executing BREAKOUT strategy...");
         // --- FIX #3: Add all 13 required parameters to the function call ---
         trade_executed = StrategyBreakout::Run(_Symbol, 
                                                 (StrategyBreakout::BoxMode)InpBoxMode, 
@@ -255,11 +256,11 @@ void OnTick()
                                                 InpBreakoutUsePending,
                                                 InpMinAtrFilterPts * _Point, // Missing parameter added
                                                 allowedDir);
-        if (trade_executed) Print("DEBUG: BREAKOUT - ATTEMPTING TRADE."); else Print("DEBUG: BREAKOUT - Conditions not met, no trade.");
+        if(InpVerboseDebug) { if (trade_executed) Print("DEBUG: BREAKOUT - ATTEMPTING TRADE."); else Print("DEBUG: BREAKOUT - Conditions not met, no trade."); }
     }
     else if(mode_to_run == MODE_MEANREVERT)
     {
-        Print("DEBUG: Executing MEAN REVERT strategy...");
+        if(InpVerboseDebug) Print("DEBUG: Executing MEAN REVERT strategy...");
         trade_executed = StrategyMeanRevert::Run(_Symbol, 
                                                   InpMR_EMAPeriod,
                                                   InpMR_ZScoreThresh,
@@ -268,18 +269,18 @@ void OnTick()
                                                   InpAtrMultTP,
                                                   InpRiskPercentPerTrade,
                                                   allowedDir);
-        if (trade_executed) Print("DEBUG: MEAN REVERT - ATTEMPTING TRADE."); else Print("DEBUG: MEAN REVERT - Conditions not met, no trade.");
+        if(InpVerboseDebug) { if (trade_executed) Print("DEBUG: MEAN REVERT - ATTEMPTING TRADE."); else Print("DEBUG: MEAN REVERT - Conditions not met, no trade."); }
     }
     else
     {
-        Print("DEBUG: No strategy executed (Drift signal is neutral or manual mode is off).");
+        if(InpVerboseDebug) Print("DEBUG: No strategy executed (Drift signal is neutral or manual mode is off).");
     }
 
     if (trade_executed)
     {
         Utils::StampTradeTime();
-        Print("DEBUG: Trade attempt recorded. Stamping cooldown time.");
-        PrintFormat("EXECUTION: mode=%s, local strategy order attempt recorded",
+        if(InpVerboseDebug) Print("DEBUG: Trade attempt recorded. Stamping cooldown time.");
+        if(InpVerboseDebug) PrintFormat("EXECUTION: mode=%s, local strategy order attempt recorded",
                     InpAosCmdEnabled ? "AOS-controlled" : "native");
     }
 

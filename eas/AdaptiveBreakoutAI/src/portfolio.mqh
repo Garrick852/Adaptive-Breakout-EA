@@ -46,7 +46,7 @@ public:
 
         double ddPct = (balance - equity) / balance * 100.0;
 
-        PrintFormat("PortfolioAgent::GlobalMonitor -> Balance=%.2f  Equity=%.2f  DD=%.2f%%  Margin=%.2f  Free=%.2f",
+        if(InpVerboseDebug) PrintFormat("PortfolioAgent::GlobalMonitor -> Balance=%.2f  Equity=%.2f  DD=%.2f%%  Margin=%.2f  Free=%.2f",
                     balance, equity, ddPct, margin, freeMargin);
 
         if(stopOutPct > 0.0 && ddPct >= stopOutPct)

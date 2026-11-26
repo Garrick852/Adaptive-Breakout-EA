@@ -44,7 +44,7 @@ public:
         if (first_half_avg <= 0) return 0; 
 
         double ratio = second_half_avg / first_half_avg;
-        PrintFormat("Drift Advise: Ratio=%.2f (Newer ATR / Older ATR)", ratio);
+        if(InpVerboseDebug) PrintFormat("Drift Advise: Ratio=%.2f (Newer ATR / Older ATR)", ratio);
 
         if (ratio > breakoutRatio) return 1;  // Breakout
         if (ratio < meanRevRatio) return -1; // Mean Reversion

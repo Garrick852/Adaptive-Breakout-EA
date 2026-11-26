@@ -109,3 +109,14 @@ terminal64.exe /config:"<repo>\configs\tester\pass1_xauusd_h1.ini"
 max(MaxDD, 0.001)` and **fail-closes to -1.0** when: fewer than 20 trades, invalid
 PF/RF, or day-reset HWM drawdown ≥ 4.5%. A Pass-1 result of `-1.0` means "not enough
 clean evidence", not "profitable" — it is the overfit/underevidence gate, by design.
+
+## Binary chain of custody
+
+| Stage | `.ex5` SHA-256 | Source |
+| --- | --- | --- |
+| Pass 1 screening (Model=1) | `3E12473984F15CAB82A12B938CB4746D4FDF566543F0B83CE3DC6522207A5A8A` | `4ee374a` (ungated DEBUG) |
+| Pass 2/3 validation (Model=4) | `43DF9337B13A82629F1A60FDBC3D930FA6D4182AB8F46C109D9E814A2BDC6571` | `InpVerboseDebug=false` gating (log-only; trades identical) |
+
+The Pass 2/3 binary gates every per-tick `DEBUG:`/`GlobalMonitor`/`Drift Advise` print
+behind `input bool InpVerboseDebug = false` (default false, toggleable via `.set`). This
+is output-only: trade logic and results are identical to the Pass 1 binary.
