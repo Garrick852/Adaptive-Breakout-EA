@@ -115,8 +115,9 @@ clean evidence", not "profitable" — it is the overfit/underevidence gate, by d
 | Stage | `.ex5` SHA-256 | Source |
 | --- | --- | --- |
 | Original (ungated) | `3E12473984F15CAB82A12B938CB4746D4FDF566543F0B83CE3DC6522207A5A8A` | `4ee374a` (superseded) |
-| Unified Pass 1/2/3 | `43DF9337B13A82629F1A60FDBC3D930FA6D4182AB8F46C109D9E814A2BDC6571` | `68102d6` (`InpVerboseDebug=false`, log-only) |
+| Unified Pass 1/2/3 | `BD53FFF4C0D272EC6A33C38AD9015A6A077A90FCCC5A778E79ECE952E95ACB99` | `InpVerboseDebug=false` + status/tap telemetry gated (log/telemetry-only) |
 
-The unified binary gates every per-tick `DEBUG:`/`GlobalMonitor`/`Drift Advise` print
-behind `input bool InpVerboseDebug = false` (default false, toggleable via `.set`). This
-is output-only: trade logic and results are identical to the original binary.
+The unified binary gates every per-tick `DEBUG:`/`GlobalMonitor`/`Drift Advise` print and
+the AOS status write behind `input bool InpVerboseDebug = false` (default false). The
+observation tap is disabled via `InpTapEnabled=false`. All are output-only: trade logic
+and results are identical to the original binary.

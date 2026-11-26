@@ -115,6 +115,8 @@ public:
     // SB_FLAG_* (override_valid / risk_veto).
     static void WriteStatus(const string symbol, const int cmdState, const int status, const int flags)
     {
+        if(!InpVerboseDebug)
+            return;                              // silent mode: skip status telemetry write
         long nowMs = (long)TimeGMT() * 1000 + (long)(GetTickCount() % 1000);
         bool stateChanged = (cmdState != s_lastStatusState);
         if(!stateChanged && (nowMs - s_lastStatusMs) < 1000)
