@@ -114,9 +114,9 @@ clean evidence", not "profitable" — it is the overfit/underevidence gate, by d
 
 | Stage | `.ex5` SHA-256 | Source |
 | --- | --- | --- |
-| Pass 1 screening (Model=1) | `3E12473984F15CAB82A12B938CB4746D4FDF566543F0B83CE3DC6522207A5A8A` | `4ee374a` (ungated DEBUG) |
-| Pass 2/3 validation (Model=4) | `43DF9337B13A82629F1A60FDBC3D930FA6D4182AB8F46C109D9E814A2BDC6571` | `InpVerboseDebug=false` gating (log-only; trades identical) |
+| Original (ungated) | `3E12473984F15CAB82A12B938CB4746D4FDF566543F0B83CE3DC6522207A5A8A` | `4ee374a` (superseded) |
+| Unified Pass 1/2/3 | `43DF9337B13A82629F1A60FDBC3D930FA6D4182AB8F46C109D9E814A2BDC6571` | `68102d6` (`InpVerboseDebug=false`, log-only) |
 
-The Pass 2/3 binary gates every per-tick `DEBUG:`/`GlobalMonitor`/`Drift Advise` print
+The unified binary gates every per-tick `DEBUG:`/`GlobalMonitor`/`Drift Advise` print
 behind `input bool InpVerboseDebug = false` (default false, toggleable via `.set`). This
-is output-only: trade logic and results are identical to the Pass 1 binary.
+is output-only: trade logic and results are identical to the original binary.
