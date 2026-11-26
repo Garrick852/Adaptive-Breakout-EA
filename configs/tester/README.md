@@ -121,3 +121,19 @@ The unified binary gates every per-tick `DEBUG:`/`GlobalMonitor`/`Drift Advise` 
 the AOS status write behind `input bool InpVerboseDebug = false` (default false). The
 observation tap is disabled via `InpTapEnabled=false`. All are output-only: trade logic
 and results are identical to the original binary.
+
+## Pass 1 results (2025.03.01–2026.09.01, Model=1, raw signal)
+
+| Metric | EURUSD H1 (BREAKOUT) | XAUUSD H1 (MEANREVERT) |
+| --- | --- | --- |
+| OnTester | -1 | -1 |
+| Total trades | 0 | 274 |
+| Net profit | 0.00 | -468.70 |
+| Profit factor | 0.00 | 0.94 |
+| Recovery factor | 0.00 | -0.25 |
+| Max equity DD | 0.00% | 1.90% |
+| Monthly pace | 0.00% | -0.03% |
+| **Verdict** | **NO-GO (no trades)** | **NO-GO (PF < 1.05)** |
+
+Neither symbol clears Pass 1, so Pass 2 (FTMO rails) and Pass 3 (WFO/latency) are not
+run. The raw signal has no friction-adjusted edge on either instrument at these presets.
