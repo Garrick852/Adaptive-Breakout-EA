@@ -1,0 +1,30 @@
+; AdaptiveBreakoutAI — Strategy Tester Pass 1 — EURUSD H1 (native breakout)
+; Source values: configs/presets/eurusd_h1_breakout.json
+; Execution posture: native local strategy, trading ARMED (no AOS command channel).
+; ---------------------------------------------------------------------------
+; Execution posture (Pass-1 requirement)
+InpAosCmdEnabled=false
+InpEnableTrading=true
+; Strategy forced to BREAKOUT (StrategyMode: 0=BREAKOUT, 1=MEANREVERT, 2=AUTO)
+InpStrategyMode=0
+; ---------------------------------------------------------------------------
+; Session filter (preset: 07:00-20:00)
+InpUseSessionFilter=true
+InpSessionStartHour=7
+InpSessionEndHour=20
+; ---------------------------------------------------------------------------
+; Box / breakout (preset)
+InpBoxMode=0
+InpBreakoutLookback=40
+InpBreakoutBufferPts=25.0
+InpBreakoutUsePending=true
+InpBreakoutRequiresClose=true
+; ---------------------------------------------------------------------------
+; SL/TP and risk (preset)
+InpAtrMultSL=2.2
+InpAtrMultTP=4.4
+InpRiskPercentPerTrade=0.5
+; ---------------------------------------------------------------------------
+; Adaptive drift thresholds (preset)
+InpDriftBreakoutRatio=1.8
+InpDriftMeanRevRatio=0.7

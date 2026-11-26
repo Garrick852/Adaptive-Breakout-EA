@@ -1,0 +1,27 @@
+; AdaptiveBreakoutAI — Strategy Tester Pass 1 — XAUUSD H1 (native mean-reversion)
+; Source values: configs/presets/xauusd_h1_meanrevert.json
+; Execution posture: native local strategy, trading ARMED (no AOS command channel).
+; ---------------------------------------------------------------------------
+; Execution posture (Pass-1 requirement)
+InpAosCmdEnabled=false
+InpEnableTrading=true
+; Strategy forced to MEANREVERT (StrategyMode: 0=BREAKOUT, 1=MEANREVERT, 2=AUTO)
+InpStrategyMode=1
+; ---------------------------------------------------------------------------
+; Session filter (preset: 07:00-21:00)
+InpUseSessionFilter=true
+InpSessionStartHour=7
+InpSessionEndHour=21
+; ---------------------------------------------------------------------------
+; Mean reversion (preset)
+InpMR_EMAPeriod=80
+InpMR_ZScoreThresh=1.8
+; ---------------------------------------------------------------------------
+; SL/TP and risk (preset)
+InpAtrMultSL=2.5
+InpAtrMultTP=5.0
+InpRiskPercentPerTrade=0.4
+; ---------------------------------------------------------------------------
+; Adaptive drift thresholds (preset)
+InpDriftBreakoutRatio=2.2
+InpDriftMeanRevRatio=0.9
