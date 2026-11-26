@@ -127,13 +127,14 @@ gating (`InpVerboseDebug=false`, tap off) is unchanged from the prior binary.
 | Metric | EURUSD H1 (BREAKOUT) | XAUUSD H1 (MEANREVERT) |
 | --- | --- | --- |
 | OnTester | -1 | -1 |
-| Total trades | 0 | 274 |
-| Net profit | 0.00 | -468.70 |
-| Profit factor | 0.00 | 0.94 |
-| Recovery factor | 0.00 | -0.25 |
-| Max equity DD | 0.00% | 1.90% |
-| Monthly pace | 0.00% | -0.03% |
-| **Verdict** | **NO-GO (no trades)** | **NO-GO (PF < 1.05)** |
+| Total trades | 176 (0 before box-shift fix) | 274 |
+| Net profit | -61.50 | -468.70 |
+| Profit factor | 0.84 | 0.94 |
+| Recovery factor | -0.62 | -0.25 |
+| Max equity DD | 0.10% | 1.90% |
+| Monthly pace | -0.003% | -0.03% |
+| **Verdict** | **NO-GO (PF 0.84)** | **NO-GO (PF 0.94)** |
 
 Neither symbol clears Pass 1, so Pass 2 (FTMO rails) and Pass 3 (WFO/latency) are not
-run. The raw signal has no friction-adjusted edge on either instrument at these presets.
+run. The breakout wiring bug is fixed (0 → 176 trades), but the raw signal still has no
+friction-adjusted edge on either instrument at these presets.
