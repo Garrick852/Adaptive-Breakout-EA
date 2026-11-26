@@ -83,7 +83,7 @@ XAUUSD H1 (`pass1_xauusd_h1.set`):
 | --- | --- | --- |
 | Symbol | EURUSD / XAUUSD | one run each |
 | Period | H1 | |
-| Modeling | Every tick based on real ticks (`Model=4`) | fall back to "1 minute OHLC" (`Model=1`) if real-tick history is sparse |
+| Modeling | 1 minute OHLC (`Model=1`) | Pass 1 screening; `Model=4` (real ticks) reserved for Pass 2/3 validation |
 | Spread | current | or fixed if the broker data is noisy |
 | Date range | 2025.03.01 – 2026.09.01 | 18 months of real-tick coverage on 1FD4E5E2 (EURUSD thru 2026-09, XAUUSD thru 2026-11) |
 | Deposit | 100000 USD | $100k avoids 0.01-lot rounding distortion at 0.4% risk on XAUUSD (2.5× ATR stop) |
