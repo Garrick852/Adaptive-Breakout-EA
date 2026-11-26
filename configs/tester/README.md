@@ -115,12 +115,12 @@ clean evidence", not "profitable" — it is the overfit/underevidence gate, by d
 | Stage | `.ex5` SHA-256 | Source |
 | --- | --- | --- |
 | Original (ungated) | `3E12473984F15CAB82A12B938CB4746D4FDF566543F0B83CE3DC6522207A5A8A` | `4ee374a` (superseded) |
-| Unified Pass 1/2/3 | `BD53FFF4C0D272EC6A33C38AD9015A6A077A90FCCC5A778E79ECE952E95ACB99` | `InpVerboseDebug=false` + status/tap telemetry gated (log/telemetry-only) |
+| Telemetry-gated | `BD53FFF4C0D272EC6A33C38AD9015A6A077A90FCCC5A778E79ECE952E95ACB99` | `InpVerboseDebug` + status/tap gated (log-only) |
+| Breakout fix (current) | `E6E28E3C8AC662EB0DC705BBBFE0918393FD0D655A3B093C4F397804B2FEDABA` | conditional box shift (`requireClose ? 2 : 1`) |
 
-The unified binary gates every per-tick `DEBUG:`/`GlobalMonitor`/`Drift Advise` print and
-the AOS status write behind `input bool InpVerboseDebug = false` (default false). The
-observation tap is disabled via `InpTapEnabled=false`. All are output-only: trade logic
-and results are identical to the original binary.
+The current binary fixes a `strategy_breakout.mqh` self-inclusion bug: the Donchian box
+included the signal bar, so `close[1] > boxHigh` could never be true → 0 trades. Telemetry
+gating (`InpVerboseDebug=false`, tap off) is unchanged from the prior binary.
 
 ## Pass 1 results (2025.03.01–2026.09.01, Model=1, raw signal)
 

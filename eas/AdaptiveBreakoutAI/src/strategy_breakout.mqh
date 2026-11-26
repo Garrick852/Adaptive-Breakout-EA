@@ -31,11 +31,16 @@ public:
         double boxHigh = 0.0, boxLow = 0.0;
         bool hasBox;
 
-        // These function calls will now be recognized by the compiler
+        // The requireClose signal bar is close[1]; the box must EXCLUDE bar 1
+        // (shift=2 => bars 2..lookback+1), otherwise close[1] is always inside the
+        // box (boxHigh includes bar 1's own high). The intrabar path compares the
+        // forming bar 0 ask/bid, so shift=1 (bars 1..lookback) stays correct there.
+        int boxShift = requireClose ? 2 : 1;
+
         if (boxMode == BOX_DONCHIAN) {
-            hasBox = Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, 1, boxHigh, boxLow);
+            hasBox = Volatility::Donchian(symbol, PERIOD_CURRENT, lookback, boxShift, boxHigh, boxLow);
         } else {
-            hasBox = Volatility::TimeRange(symbol, PERIOD_CURRENT, timeFrom, timeTo, 1, boxHigh, boxLow);
+            hasBox = Volatility::TimeRange(symbol, PERIOD_CURRENT, timeFrom, timeTo, boxShift, boxHigh, boxLow);
         }
         
         if (!hasBox) return false;
